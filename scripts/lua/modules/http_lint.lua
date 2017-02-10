@@ -715,6 +715,7 @@ local known_parameters = {
    ["toggle_access_log"]                           =  validateBool,
    ["toggle_snmp_rrds"]                            =  validateBool,
    ["toggle_asn_rrds"]                             =  validateBool,
+   ["toggle_shaping_directions"]                   =  validateBool,
 
    -- Input fields
    ["minute_top_talkers_retention"]                =  validateNumber,
