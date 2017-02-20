@@ -1344,20 +1344,8 @@ bool NetworkInterface::processPacket(const struct bpf_timeval *when,
     flow->processDetectedProtocol();
 
 #ifdef NTOPNG_PRO
-    if(is_bridge_interface()) {
-	pass_verdict = flow->isPassVerdict();
-
-	if(pass_verdict) {
-	    u_int8_t shaper_ingress, shaper_engress;
-	    char buf[64];
-
-	    flow->getFlowShapers(src2dst_direction, &shaper_ingress, &shaper_engress);
-	    ntop->getTrace()->traceEvent(TRACE_DEBUG, "[%s] %u / %u ",
-					 flow->get_detected_protocol_name(buf, sizeof(buf)),
-					 shaper_ingress, shaper_engress);
-	    pass_verdict = passShaperPacket(shaper_ingress, shaper_engress, (struct pcap_pkthdr*)h);
-	}
-    }
+    if(is_bridge_interface())
+      pass_verdict = passShaperPacket(flow, src2dst_direction, (struct pcap_pkthdr*)h);
 #endif
 
     bool dump_if_unknown = dump_unknown_traffic

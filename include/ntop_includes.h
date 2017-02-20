@@ -252,6 +252,9 @@ using namespace std;
 #include "Paginator.h"
 #include "Ntop.h"
 
+#ifdef NTOPNG_PRO
+#include "Quota.h"
+#endif
 
 #ifdef WIN32
 extern "C" {
