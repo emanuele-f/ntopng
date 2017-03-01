@@ -112,6 +112,11 @@ if (isAdministrator()) then
 	 interface.loadScalingFactorPrefs()
    end
 
+   -- TODO change and validate this
+   if(_POST["p_snmp_interface"] ~= nil) then
+      ntop.setCache(getRedisIfacePrefix(ifid)..'.snmp_compare', _POST["p_snmp_interface"])
+   end
+
    if is_packetdump_enabled then
       if(_POST["dump_all_traffic"] ~= nil) then
 	 page = "packetdump"
@@ -928,6 +933,21 @@ elseif(page == "config") then
       inline_input_form("scaling_factor", "Scaling Factor",
          "This should match your capture interface sampling rate",
          label, isAdministrator(), 'type="number" min="1" step="1"', 'no-spinner')
+      print[[
+         </td>
+      </tr>]]
+   end
+
+   -- SNMP comparison
+   if ntop.isEnterprise() then
+      print[[
+      <tr>
+         <th>Associated SNMP Interface</th>
+         <td>]]
+      local label = ntop.getCache(getRedisIfacePrefix(ifid)..'.snmp_compare')
+      inline_input_form("p_snmp_interface", "ip:community:interface",
+         "A SNMP interface to be used for traffic comparison with local interface",
+         label, isAdministrator(), 'autocorrect="off" spellcheck="false"')
       print[[
          </td>
       </tr>]]
