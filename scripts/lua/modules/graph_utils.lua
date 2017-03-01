@@ -18,6 +18,7 @@ top_rrds = {
    ["tcp_ooo.rrd"] = "TCP Packets Out-Of-Order",
    ["tcp_retransmissions.rrd"] = "TCP Retransmitted Packets",
    ["num_zmq_received_flows.rrd"] = "ZMQ Received Flows",
+   ["bytes_snmp_comparison.rrd"] = "SNMP Ratio",
 }
 
 -- ########################################################

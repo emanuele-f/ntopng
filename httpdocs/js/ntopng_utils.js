@@ -136,6 +136,11 @@ function fdate(when) {
     return(d);
 }
 
+function frateo(value) {
+    // round to two decimal digits
+    return Math.round(value * 10000) / 100 + " %";
+}
+
 function capitaliseFirstLetter(string) {
     return string.charAt(0).toUpperCase() + string.slice(1);
 }
