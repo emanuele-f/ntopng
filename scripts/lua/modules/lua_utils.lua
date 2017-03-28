@@ -2720,7 +2720,7 @@ function makeResolutionButtons(fmt_to_data, ctrl_id, fmt, value, extra)
       else
 	 line[#line+1] = [[ btn-default]]
       end
-      line[#line+1] = [[ btn-sm"><input value="]] .. v.value .. [[" title="]] .. v.label .. [[" name="opt_resbt_]] .. k .. [[_]] .. ctrl_id .. [[" autocomplete="off" type="radio"]]
+      line[#line+1] = [[ btn-sm"><input data-resol="]] .. k .. [[" value="]] .. v.value .. [[" title="]] .. v.label .. [[" name="opt_resbt_]] .. k .. [[_]] .. ctrl_id .. [[" autocomplete="off" type="radio"]]
       if selected == k then line[#line+1] = [[ checked="checked"]] end
       line[#line+1] = [[/>]] .. v.label .. [[</label>]]
 
@@ -2755,6 +2755,16 @@ function makeResolutionButtons(fmt_to_data, ctrl_id, fmt, value, extra)
         raw = parseInt(input.attr("data-max"));
         if (! isNaN(raw))
           input.attr("max", Math.sign(raw) * Math.ceil(Math.abs(raw) / selected.val()));
+
+        var step = parseInt(input.attr("data-step-" + selected.attr("data-resol")));
+        if (! isNaN(step)) {
+          input.attr("step", step);
+
+          /* Align value */
+          input.val(input.val() - input.val() % step);
+        } else
+          input.attr("step", "");
+
         resol_recheck_input_range(input);
       }
 

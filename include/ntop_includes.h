@@ -150,12 +150,16 @@ using namespace std;
 #include "NtopGlobals.h"
 #include "Profile.h"
 #include "Profiles.h"
+#include "TrafficStats.h"
+#include "GenericTrafficElement.h"
+#include "nDPIStats.h"
 #ifdef NTOPNG_PRO
 #include "CountMinSketch.h"
 #include "FlowProfile.h"
 #include "FlowProfiles.h"
 #include "CounterTrend.h"
 #include "LRUMacIP.h"
+#include "HostPoolStats.h"
 #ifdef HAVE_LDAP
 #include "LdapAuthenticator.h"
 #endif
@@ -171,9 +175,7 @@ using namespace std;
 #include "Utils.h"
 #include "ActivityStats.h"
 #include "UserActivityStats.h"
-#include "nDPIStats.h"
 #include "DnsStats.h"
-#include "TrafficStats.h"
 #include "NetworkStats.h"
 #include "Grouper.h"
 #include "PacketStats.h"
@@ -186,7 +188,6 @@ using namespace std;
 #include "PacketDumperTuntap.h"
 #include "GenericHashEntry.h"
 #include "AlertCounter.h"
-#include "GenericTrafficElement.h"
 #include "GenericHost.h"
 #include "GenericHash.h"
 #include "VirtualHost.h"
@@ -222,7 +223,6 @@ using namespace std;
 #include "FlowChecker.h"
 #include "FrequentStringItems.h"
 #include "FrequentNumericItems.h"
-#include "HostPoolStats.h"
 #include "SNMPstats.h"
 #ifdef HAVE_NETFILTER
 #include "NetfilterInterface.h"

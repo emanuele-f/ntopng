@@ -1431,7 +1431,7 @@ local split_shaping_directions = (ntop.getPref("ntopng.prefs.split_shaping_direc
 NOTES:
 <ul>
 <li>Dropping some core protocols can have side effects on other protocols. For instance if you block DNS,<br>symbolic host names are no longer resolved, and thus only communication with numeric IPs work.
-<li>Set Traffic and Time Quota to -1 to disable limits</li>
+<li>Set Traffic and Time Quota to 0 to disable limits</li>
 </ul>
 
 
@@ -1464,6 +1464,7 @@ function makeResolutionButtonsAtRuntime(td_object, template_html, template_js, i
    var value = (extra.value !== undefined) ? (extra.value) : (td_object.html());
    var disabled = extra.disabled;
    var maxvalue = extra.max_value;
+   var minvalue = extra.min_value;
 
    // fix ctrl id
    var buttons = $(replaceCtrlId(template_html, input_name));
@@ -1472,15 +1473,21 @@ function makeResolutionButtonsAtRuntime(td_object, template_html, template_js, i
    div.appendTo(td_object);
    buttons.appendTo(div);
 
-   var input = $('<input name="' + input_name + '" class="form-control" type="number" data-min="-1" style="width:8em; text-align:right; margin-left:1em; display:inline;" required/>');
+   var input = $('<input name="' + input_name + '" class="form-control" type="number" style="width:8em; text-align:right; margin-left:1em; display:inline;" required/>');
    if (maxvalue !== null)
       input.attr("data-max", maxvalue);
+
+   input.attr("data-min", (minvalue !== null) ? minvalue : -1);
    input.appendTo(div);
 
    if (disabled) {
       input.attr("disabled", "disabled");
       buttons.find("label").attr("disabled", "disabled");
    }
+
+   // Add steps if available
+   for (resol in extra.steps)
+      input.attr("data-step-"+resol, extra.steps[resol]);
 
    // execute group specific code
    eval(replaceCtrlId(template_js, input_name));
@@ -1549,7 +1556,7 @@ print[[
 
       /* Possibly handle multiple blocked categories */
       var sites_categories = $("#l7ProtosForm select[name='sites_categories']");
-      if (sites_categories) {
+      if (sites_categories.length == 1) {
          var selection = [];
          $("option:selected", sites_categories).each(function() {
             selection.push($(this).val());
@@ -1582,14 +1589,18 @@ print[[
 ]] print_shapers(shapers, "0", "\\") print[[
          </optgroup>\
       </select></td><td class="text-center text-middle">-1</td><td class="text-center text-middle">-1</td><td class="text-center text-middle"></td></tr>');
+      $("#table-protos table").append(tr);
+
       makeTrafficQuotaButtons(tr, newid);
       makeTimeQuotaButtons(tr, newid);
 
-      $("#table-protos table").append(tr);
       datatableMakeSelectUnique(tr, newid_prefix, {
          on_change: function(select, old_val, new_val, others, change_fn) {
 
             function changeConditionally(option, to_enable) {
+               /* NOTE: Remove this return to enable protocol-category mutual exclusion */
+               //return;
+
                if(! to_enable) {
                   if (! option.attr("disabled")) {
                      option.attr("data-auto-disabled", true);
@@ -1670,11 +1681,19 @@ print[[
    }
 
    function makeTrafficQuotaButtons(tr_obj, proto_id) {
-      makeResolutionButtonsAtRuntime($("td:nth-child(4)", tr_obj), traffic_buttons_html, traffic_buttons_code, "qtraffic_" + proto_id);
+      makeResolutionButtonsAtRuntime($("td:nth-child(4)", tr_obj), traffic_buttons_html, traffic_buttons_code, "qtraffic_" + proto_id, {
+         max_value: 100*1024*1024 /* 100 GB */,
+         min_value: 0,
+         disabled: ((proto_id === "default") || (]] print(ternary(selected_pool.id == host_pools_utils.DEFAULT_POOL_ID, "true", "false")) print[[)) ? true : false
+      });
    }
 
    function makeTimeQuotaButtons(tr_obj, proto_id) {
-      makeResolutionButtonsAtRuntime($("td:nth-child(5)", tr_obj), time_buttons_html, time_buttons_code, "qtime_" + proto_id, {max_value:3600*24});
+      makeResolutionButtonsAtRuntime($("td:nth-child(5)", tr_obj), time_buttons_html, time_buttons_code, "qtime_" + proto_id, {
+         max_value: 23*60*60 /* 23 hours */,
+         min_value: 0,
+         disabled: ((proto_id === "default") || (]] print(ternary(selected_pool.id == host_pools_utils.DEFAULT_POOL_ID, "true", "false")) print[[)) ? true : false
+      });
    }
 
    $("#table-protos").datatable({

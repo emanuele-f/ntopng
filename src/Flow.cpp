@@ -77,7 +77,7 @@ Flow::Flow(NetworkInterface *_iface,
   iface->findFlowHosts(_vlanId, cli_mac, _cli_ip, &cli_host, srv_mac, _srv_ip, &srv_host);
   if(cli_host) { cli_host->incUses(); cli_host->incNumFlows(true); }
   if(srv_host) { srv_host->incUses(); srv_host->incNumFlows(false); }
-  passVerdict = true, categorization.categorized_requested = false;
+  passVerdict = true, quota_exceeded = false, categorization.categorized_requested = false;
   if(_first_seen > _last_seen) _first_seen = _last_seen;
   first_seen = _first_seen, last_seen = _last_seen;
   memset(&categorization.category, 0, sizeof(categorization.category));
@@ -858,6 +858,7 @@ void Flow::update_hosts_stats(struct timeval *tv, bool inDeleteMethod) {
 #ifdef NTOPNG_PRO
   HostPools *hp;
   u_int16_t cli_host_pool_id, srv_host_pool_id;
+  ndpi_protocol_category_t category_id = getInterface()->get_ndpi_proto_category(ndpiDetectedProtocol.app_protocol);
 #endif
 
   if(check_tor && (ndpiDetectedProtocol.app_protocol == NDPI_PROTOCOL_SSL)) {
@@ -907,10 +908,11 @@ void Flow::update_hosts_stats(struct timeval *tv, bool inDeleteMethod) {
 
       hp = iface->getHostPools();
       if(hp) {
-	hp->incPoolStats(tv->tv_sec, cli_host_pool_id, ndpiDetectedProtocol.app_protocol,
+	hp->incPoolStats(tv->tv_sec, cli_host_pool_id, ndpiDetectedProtocol.app_protocol, category_id,
 			 diff_sent_packets, diff_sent_bytes, diff_rcvd_packets, diff_rcvd_bytes);
-	hp->incPoolStats(tv->tv_sec, srv_host_pool_id, ndpiDetectedProtocol.app_protocol,
+	hp->incPoolStats(tv->tv_sec, srv_host_pool_id, ndpiDetectedProtocol.app_protocol, category_id,
 			 diff_rcvd_packets, diff_rcvd_bytes, diff_sent_packets, diff_sent_bytes);
+	recheckQuota();
       }
 #endif
 
@@ -2378,8 +2380,9 @@ bool Flow::isPassVerdict() {
   if(!passVerdict) return(passVerdict);
 
   if(cli_host && srv_host)
-    return((!(cli_host->dropAllTraffic() || srv_host->dropAllTraffic()))
-           && (!(cli_host->isBlacklisted() || srv_host->isBlacklisted())));
+    return((!quota_exceeded)
+        && (!(cli_host->dropAllTraffic() || srv_host->dropAllTraffic()))
+        && (!(cli_host->isBlacklisted() || srv_host->isBlacklisted())));
   else
     return(true);
 }
@@ -2479,6 +2482,7 @@ void Flow::updateDirectionShapers(bool src2dst_direction, u_int8_t *a_shaper_id,
 void Flow::updateFlowShapers() {
   updateDirectionShapers(true, &flowShaperIds.cli2srv.ingress, &flowShaperIds.cli2srv.egress),
     updateDirectionShapers(false, &flowShaperIds.srv2cli.ingress, &flowShaperIds.srv2cli.egress);
+  recheckQuota();
 
 #ifdef SHAPER_DEBUG
   {
@@ -2489,6 +2493,24 @@ void Flow::updateFlowShapers() {
 #endif
 }
 #endif
+
+/* *************************************** */
+
+void Flow::recheckQuota() {
+  bool above_quota = false;
+
+  if(cli_host && srv_host) {
+    /* Client quota check */
+    above_quota = cli_host->isAboveQuota(ndpiDetectedProtocol.app_protocol);
+
+    if (above_quota == false) {
+      /* Server quota check */
+      above_quota = srv_host->isAboveQuota(ndpiDetectedProtocol.app_protocol);
+    }
+  }
+
+  quota_exceeded = above_quota;
+}
 
 #endif
 

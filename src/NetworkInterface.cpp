@@ -2177,6 +2177,26 @@ void NetworkInterface::updateFlowsL7Policy() {
   flows_hash->walk(update_flow_l7_policy, NULL);
 }
 
+/* **************************************************** */
+
+static bool flow_recheck_quota_walker(GenericHashEntry *flow, void *user_data) {
+  Flow *f = (Flow*)flow;
+
+  f->recheckQuota();
+  return(false); /* false = keep on walking */
+}
+
+void NetworkInterface::resetDailyPoolsStats() {
+  if (host_pools) {
+    disablePurge(true);
+
+    host_pools->resetDailyPoolsStats();
+    walker(walker_flows, flow_recheck_quota_walker, NULL);
+
+    enablePurge(true);
+  }
+}
+
 #endif
 
 /* **************************************************** */
