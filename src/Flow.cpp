@@ -858,7 +858,8 @@ void Flow::update_hosts_stats(struct timeval *tv, bool inDeleteMethod) {
 #ifdef NTOPNG_PRO
   HostPools *hp;
   u_int16_t cli_host_pool_id, srv_host_pool_id;
-  ndpi_protocol_category_t category_id = getInterface()->get_ndpi_proto_category(ndpiDetectedProtocol.app_protocol);
+  ndpi_protocol_category_t master_category_id = getInterface()->get_ndpi_proto_category(ndpiDetectedProtocol.master_protocol);
+  ndpi_protocol_category_t app_category_id = getInterface()->get_ndpi_proto_category(ndpiDetectedProtocol.app_protocol);
 #endif
 
   if(check_tor && (ndpiDetectedProtocol.app_protocol == NDPI_PROTOCOL_SSL)) {
@@ -908,9 +909,15 @@ void Flow::update_hosts_stats(struct timeval *tv, bool inDeleteMethod) {
 
       hp = iface->getHostPools();
       if(hp) {
-	hp->incPoolStats(tv->tv_sec, cli_host_pool_id, ndpiDetectedProtocol.app_protocol, category_id,
+        /* Client host */
+	hp->incPoolStats(tv->tv_sec, cli_host_pool_id, ndpiDetectedProtocol.master_protocol, master_category_id,
 			 diff_sent_packets, diff_sent_bytes, diff_rcvd_packets, diff_rcvd_bytes);
-	hp->incPoolStats(tv->tv_sec, srv_host_pool_id, ndpiDetectedProtocol.app_protocol, category_id,
+	hp->incPoolStats(tv->tv_sec, cli_host_pool_id, ndpiDetectedProtocol.app_protocol, app_category_id,
+			 diff_sent_packets, diff_sent_bytes, diff_rcvd_packets, diff_rcvd_bytes);
+        /* Server host */
+	hp->incPoolStats(tv->tv_sec, srv_host_pool_id, ndpiDetectedProtocol.master_protocol, master_category_id,
+			 diff_rcvd_packets, diff_rcvd_bytes, diff_sent_packets, diff_sent_bytes);
+	hp->incPoolStats(tv->tv_sec, srv_host_pool_id, ndpiDetectedProtocol.app_protocol, app_category_id,
 			 diff_rcvd_packets, diff_rcvd_bytes, diff_sent_packets, diff_sent_bytes);
 	recheckQuota();
       }
@@ -2501,11 +2508,11 @@ void Flow::recheckQuota() {
 
   if(cli_host && srv_host) {
     /* Client quota check */
-    above_quota = cli_host->isAboveQuota(ndpiDetectedProtocol.app_protocol);
+    above_quota = cli_host->isAboveQuota(ndpiDetectedProtocol.app_protocol) || cli_host->isAboveQuota(ndpiDetectedProtocol.master_protocol);
 
     if (above_quota == false) {
       /* Server quota check */
-      above_quota = srv_host->isAboveQuota(ndpiDetectedProtocol.app_protocol);
+      above_quota = srv_host->isAboveQuota(ndpiDetectedProtocol.app_protocol) || srv_host->isAboveQuota(ndpiDetectedProtocol.master_protocol);
     }
   }
 
