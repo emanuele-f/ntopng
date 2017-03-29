@@ -82,69 +82,6 @@ print [[
 local pools_stats = interface.getHostPoolsStats()
 local pool_stats = pools_stats and pools_stats[tonumber(pool_id)]
 
-function printProtocolRow(proto, ndpi_stats, category_stats)
-  if ((proto.traffic_quota ~= "0") or (proto.time_quota ~= "0")) then
-    local total_bytes = 0
-    local total_duration = 0
-    local name
-
-    if shaper_utils.extractCategoryFromId(proto.protoId) == nil then
-      -- This is a single protocol
-      local proto_stats = ndpi_stats[proto.protoName]
-      if proto_stats ~= nil then
-        total_bytes = proto_stats["bytes.sent"] + proto_stats["bytes.rcvd"]
-        total_duration = proto_stats["duration"]
-      end
-
-      name = proto.protoName        
-    else
-      -- This is a category
-      local cat_stats = category_stats[proto.protoName]
-      if cat_stats ~= nil then
-        total_bytes = cat_stats["bytes"]
-        total_duration = cat_stats["duration"]
-      end
-
-      name = shaper_utils.formatCategory(proto.protoName, proto.protos)
-    end
-
-    local bytes_exceeded = ((proto.traffic_quota ~= "0") and (total_bytes >= tonumber(proto.traffic_quota)))
-    local time_exceeded = ((proto.time_quota ~= "0") and (total_duration >= tonumber(proto.time_quota)))
-    local lb_bytes = bytesToSize(total_bytes)
-    local lb_bytes_quota = ternary(proto.traffic_quota ~= "0", bytesToSize(tonumber(proto.traffic_quota)), i18n("unlimited"))
-    local lb_duration = secondsToTime(total_duration)
-    local lb_duration_quota = ternary(proto.time_quota ~= "0", secondsToTime(tonumber(proto.time_quota)), i18n("unlimited"))
-
-    local traffic_taken = ternary(proto.traffic_quota ~= "0", math.min(total_bytes, proto.traffic_quota), total_bytes)
-    local traffic_remaining = math.max(proto.traffic_quota - traffic_taken, 0)
-    local traffic_quota_ratio = round(traffic_taken * 100 / (traffic_taken+traffic_remaining), 0)
-
-    local duration_taken = ternary(proto.time_quota ~= "0", math.min(total_duration, proto.time_quota), total_duration)
-    local duration_remaining = math.max(proto.time_quota - duration_taken, 0)
-    local duration_quota_ratio = round(duration_taken * 100 / (duration_taken+duration_remaining), 0)
-
-    print([[
-      <tr>
-        <td>]]..name..[[</td>
-        <td class="text-right"]]..ternary(bytes_exceeded, ' style="color:red;"', '')..">"..lb_bytes.." / "..lb_bytes_quota..[[
-          <div class="progress">
-            <div class="progress-bar progress-bar-warning" aria-valuenow="]]..traffic_quota_ratio..'" aria-valuemin="0" aria-valuemax="100" style="width: '..traffic_quota_ratio..'%;">'..
-              bytesToSize(traffic_taken)..[[
-            </div>
-          </div>
-        </td>
-        <td class="text-right"]]..ternary(time_exceeded, ' style="color:red;"', '')..">"..lb_duration.." / "..lb_duration_quota..[[
-          <div class="progress">
-            <div class="progress-bar progress-bar-warning" aria-valuenow="]]..duration_quota_ratio..'" aria-valuemin="0" aria-valuemax="100" style="width: '..duration_quota_ratio..'%;">'..
-              secondsToTime(duration_taken)..[[
-            </div>
-          </div>
-        </td>
-      </tr>
-    ]])
-  end
-end
-
 if ntop.isPro() and ifstats.inline and (page == "quotas") and (pool_stats ~= nil) then
   local ndpi_stats = pool_stats.ndpi
   local category_stats = pool_stats.ndpi_categories
@@ -166,28 +103,34 @@ if ntop.isPro() and ifstats.inline and (page == "quotas") and (pool_stats ~= nil
   else
     print[[
     <table class="table table-bordered table-striped">
+    <thead>
       <tr>
         <th>]] print(i18n("protocol")) print[[</th>
         <th class="text-center">]] print(i18n("shaping.daily_traffic")) print[[</th>
         <th class="text-center">]] print(i18n("shaping.daily_time")) print[[</th>
-      </tr>]]
+      </tr>
+    </thead>
+    <tbody id="pool_quotas_ndpi_tbody">
+    </tbody>
+    </table>
 
-    -- Categories first
-    for _, proto in pairsByKeys(quota_and_protos) do
-      if shaper_utils.extractCategoryFromId(proto.protoId) ~= nil then
-        printProtocolRow(proto, ndpi_stats, category_stats)
-      end
-    end
+    <script>
+      function update_ndpi_table() {
+        $.ajax({
+          type: 'GET',
+          url: ']]
+    print(getPageUrl(ntop.getHttpPrefix().."/lua/pro/pool_details_ndpi.lua").."', data: ")
+    print(tableToJsObject(page_params))
+    print[[,
+          success: function(content) {
+            $('#pool_quotas_ndpi_tbody').html(content);
+          }
+        });
+      }
 
-    -- Protocols after
-    for _, proto in pairsByKeys(quota_and_protos) do
-      if shaper_utils.extractCategoryFromId(proto.protoId) == nil then
-        printProtocolRow(proto, ndpi_stats, category_stats)
-      end
-    end
-
-    print[[
-    </table>]]
+      setInterval(update_ndpi_table, 5000);
+      update_ndpi_table();
+     </script>]]
   end
 elseif page == "historical" then
   local rrdbase = host_pools_utils.getRRDBase(ifId, pool_id)
