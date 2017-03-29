@@ -326,7 +326,7 @@ void HostPools::luaStats(lua_State *vm) {
 
 /* *************************************** */
 
-void HostPools::resetDailyPoolsStats() {
+void HostPools::resetPoolsStats() {
     HostPoolStats *hps;
 
   if(stats) {
@@ -334,7 +334,7 @@ void HostPools::resetDailyPoolsStats() {
       if((hps = stats[i])) {
         /* Must use the assigned hps as stats can be swapped
            and accesses such as stats[i] could yield a NULL value */
-        hps->resetDailyStats();
+        hps->resetStats();
       }
     }
   }

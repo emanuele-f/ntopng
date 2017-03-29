@@ -1682,7 +1682,7 @@ print[[
 
    function makeTrafficQuotaButtons(tr_obj, proto_id) {
       makeResolutionButtonsAtRuntime($("td:nth-child(4)", tr_obj), traffic_buttons_html, traffic_buttons_code, "qtraffic_" + proto_id, {
-         max_value: 100*1024*1024 /* 100 GB */,
+         max_value: 100*1024*1024*1024 /* 100 GB */,
          min_value: 0,
          disabled: ((proto_id === "default") || (]] print(ternary(selected_pool.id == host_pools_utils.DEFAULT_POOL_ID, "true", "false")) print[[)) ? true : false
       });

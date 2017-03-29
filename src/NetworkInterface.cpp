@@ -2186,11 +2186,11 @@ static bool flow_recheck_quota_walker(GenericHashEntry *flow, void *user_data) {
   return(false); /* false = keep on walking */
 }
 
-void NetworkInterface::resetDailyPoolsStats() {
+void NetworkInterface::resetPoolsStats() {
   if (host_pools) {
     disablePurge(true);
 
-    host_pools->resetDailyPoolsStats();
+    host_pools->resetPoolsStats();
     walker(walker_flows, flow_recheck_quota_walker, NULL);
 
     enablePurge(true);

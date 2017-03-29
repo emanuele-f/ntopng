@@ -83,23 +83,23 @@ public:
   void updateStats(struct timeval *tv);
   void luaStats(lua_State *vm);
 
-  inline bool getDailyProtoStats(u_int16_t host_pool_id, u_int16_t ndpi_proto, u_int64_t *bytes, u_int32_t *duration) {
+  inline bool getProtoStats(u_int16_t host_pool_id, u_int16_t ndpi_proto, u_int64_t *bytes, u_int32_t *duration) {
     HostPoolStats *hps;
     if (!(hps = getPoolStats(host_pool_id))) return false;
 
-    hps->getDailyProtoStats(ndpi_proto, bytes, duration);
+    hps->getProtoStats(ndpi_proto, bytes, duration);
     return true;
   }
 
-  inline bool getDailyCategoryStats(u_int16_t host_pool_id, ndpi_protocol_category_t category_id, u_int64_t *bytes, u_int32_t *duration) {
+  inline bool getCategoryStats(u_int16_t host_pool_id, ndpi_protocol_category_t category_id, u_int64_t *bytes, u_int32_t *duration) {
     HostPoolStats *hps;
     if (!(hps = getPoolStats(host_pool_id))) return false;
 
-    hps->getDailyCategoryStats(category_id, bytes, duration);
+    hps->getCategoryStats(category_id, bytes, duration);
     return true;
   }
 
-  void resetDailyPoolsStats();
+  void resetPoolsStats();
 
   void luaVolatileMembers(lua_State *vm);
   void addToPool(char *host_or_mac, u_int16_t user_pool_id, int32_t lifetime_secs);

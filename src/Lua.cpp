@@ -3477,13 +3477,13 @@ static int ntop_reload_host_pools(lua_State *vm) {
 
 #ifdef NTOPNG_PRO
 
-static int ntop_reset_daily_pools_stats(lua_State *vm) {
+static int ntop_reset_pools_stats(lua_State *vm) {
   NetworkInterface *ntop_interface = getCurrentInterface(vm);
 
   ntop->getTrace()->traceEvent(TRACE_DEBUG, "%s() called", __FUNCTION__);
 
   if(ntop_interface) {
-    ntop_interface->resetDailyPoolsStats();
+    ntop_interface->resetPoolsStats();
 
     return(CONST_LUA_OK);
   } else
@@ -5617,7 +5617,7 @@ static const luaL_Reg ntop_interface_reg[] = {
   /* Host pools */
   { "reloadHostPools",                ntop_reload_host_pools                },
   #ifdef NTOPNG_PRO
-  { "resetDailyPoolsStats",           ntop_reset_daily_pools_stats          },
+  { "resetPoolsStats",                ntop_reset_pools_stats          },
   { "getHostPoolsStats",              ntop_get_host_pool_interface_stats    },
   { "getHostPoolsVolatileMembers",    ntop_get_host_pool_volatile_members   },
   { "purgeExpiredPoolsMembers",       ntop_purge_expired_host_pools_members },

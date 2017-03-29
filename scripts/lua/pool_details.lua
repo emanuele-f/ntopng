@@ -123,7 +123,8 @@ if ntop.isPro() and ifstats.inline and (page == "quotas") and (pool_stats ~= nil
     print(tableToJsObject(page_params))
     print[[,
           success: function(content) {
-            $('#pool_quotas_ndpi_tbody').html(content);
+            if(content)
+              $('#pool_quotas_ndpi_tbody').html(content);
           }
         });
       }

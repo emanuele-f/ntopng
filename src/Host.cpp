@@ -1244,14 +1244,13 @@ bool Host::isAboveQuota(u_int16_t protocol) {
   if ((bytes_quota > 0) || (secs_quota > 0)) {
       category = getInterface()->get_ndpi_proto_category(protocol);
 
-      if ((is_category && pools->getDailyCategoryStats(get_host_pool(), category, &bytes, &secs))
-       || (!is_category && pools->getDailyProtoStats(get_host_pool(), protocol, &bytes, &secs))) {
+      if ((is_category && pools->getCategoryStats(get_host_pool(), category, &bytes, &secs))
+       || (!is_category && pools->getProtoStats(get_host_pool(), protocol, &bytes, &secs))) {
         if (((bytes_quota > 0) && (bytes >= bytes_quota))
          || ((secs_quota > 0) && (secs >= secs_quota)))
         is_above = true;
 
-//#ifdef SHAPER_DEBUG
-#if 1
+#ifdef SHAPER_DEBUG
         {
           char buf[64];
 
