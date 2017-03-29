@@ -1365,7 +1365,7 @@ function print_ndpi_families_and_protocols(categories, protos, categories_disabl
    for k,category in pairsByKeys(categories, asc) do
       print('<option value="cat_'..category.id..'"')
       if categories_disabled[category.id] ~= nil then print(' disabled="disabled"') end
-      print('>' .. k .. " " .. ' ('.. category.count .. ')</option>'..terminator)
+      print('>' .. shaper_utils.formatCategory(k, category.count) ..'</option>'..terminator)
    end
    print('</optgroup>')
 

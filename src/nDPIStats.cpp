@@ -96,7 +96,7 @@ void nDPIStats::print(NetworkInterface *iface) {
 
 /* *************************************** */
 
-void nDPIStats::lua(NetworkInterface *iface, lua_State* vm) {
+void nDPIStats::lua(NetworkInterface *iface, lua_State* vm, bool with_categories) {
   lua_newtable(vm);
 
   for(int i=0; i<MAX_NDPI_PROTOS; i++)
@@ -124,6 +124,28 @@ void nDPIStats::lua(NetworkInterface *iface, lua_State* vm) {
   lua_pushstring(vm, "ndpi");
   lua_insert(vm, -2);
   lua_settable(vm, -3);
+
+  if (with_categories) {
+    lua_newtable(vm);
+
+    for (int i=0; i<NDPI_PROTOCOL_NUM_CATEGORIES; i++) {
+      if(cat_counters[i].bytes > 0) {
+        lua_newtable(vm);
+
+        lua_push_int_table_entry(vm, "category", i);
+        lua_push_int_table_entry(vm, "bytes", cat_counters[i].bytes);
+        lua_push_int_table_entry(vm, "duration", cat_counters[i].duration);
+
+        lua_pushstring(vm, ndpi_category_str((ndpi_protocol_category_t)i));
+        lua_insert(vm, -2);
+        lua_settable(vm, -3);
+      }
+    }
+
+    lua_pushstring(vm, "ndpi_categories");
+    lua_insert(vm, -2);
+    lua_settable(vm, -3);
+  }
 }
 
 /* *************************************** */

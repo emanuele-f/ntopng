@@ -30,6 +30,7 @@ local  en = {
    all = "All",
    define = "Define",
    traffic_policy = "Traffic Policy",
+   unlimited = "Unlimited",
 
    traffic_report = {
       daily = "Daily",
@@ -74,6 +75,9 @@ local  en = {
       traffic_through = "Traffic through",
       daily_traffic_quota = "Daily Traffic Quota",
       daily_time_quota = "Daily Time Quota",
+      daily_traffic = "Daily Traffic (Current / Quota)",
+      no_quota_data = "No quota set",
+      daily_time = "Daily Time (Current / Quota)",
       delete_policy = "Delete Policy",
       confirm_delete_policy = "Do you really want to delete",
       policy_from_pool = "policy from pool",
