@@ -50,14 +50,6 @@ class HostPools {
 
 #ifdef NTOPNG_PRO
   void swap(AddressTree **new_trees, HostPoolStats **new_stats);
-#else
-  void swap(AddressTree **new_trees);
-#endif
-
-  Mutex *swap_lock;
-  volatile time_t latest_swap;
-  AddressTree **tree, **tree_shadow;
-  NetworkInterface *iface;
 
   inline HostPoolStats* getPoolStats(u_int16_t host_pool_id) {
     if(host_pool_id == NO_HOST_POOL_ID
@@ -68,6 +60,15 @@ class HostPools {
   }
 
   void reloadPoolStats();
+#else
+  void swap(AddressTree **new_trees);
+#endif
+
+  Mutex *swap_lock;
+  volatile time_t latest_swap;
+  AddressTree **tree, **tree_shadow;
+  NetworkInterface *iface;
+
   void loadFromRedis();
   void dumpToRedis();
 
