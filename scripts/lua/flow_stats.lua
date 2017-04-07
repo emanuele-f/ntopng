@@ -47,6 +47,14 @@ else
     .. '"seen.first": "'.. formatEpoch(flow["seen.first"]) .. ' ['.. secondsToTime(diff0) .. ' ago]"'
     .. ', "bytes": ' .. flow["bytes"] .. ', "goodput_bytes": ' .. flow["goodput_bytes"] .. ', "cli2srv.packets": ' .. flow["cli2srv.packets"] .. ', "srv2cli.packets": ' .. flow["srv2cli.packets"] .. ', "cli2srv.bytes": ' .. flow["cli2srv.bytes"] .. ', "srv2cli.bytes": ' .. flow["srv2cli.bytes"].. ', "throughput": "' .. thpt_display..'", "top_throughput_display": "'.. top_thpt_display ..'", "throughput_raw": ' .. thpt)
 
+    -- TODO only put this when inline
+    print(', "cli2srv_quota":'.. "\"")
+    printFlowQuota(flow, flow["cli.pool_id"])
+    print("\"" )
+    print(', "srv2cli_quota":'.. "\"")
+    printFlowQuota(flow, flow["srv.pool_id"])
+    print("\"" )
+
     if(flow["proto.l4"] == "TCP") then
        print(', "c2sOOO":'.. flow["cli2srv.out_of_order"] )
        print(', "c2slost":'..flow["cli2srv.lost"] )

@@ -1582,3 +1582,37 @@ function getRTPTableRows(info)
 end
 
 -- #######################
+
+function printFlowQuota(info, pool_id)
+    --TODO choose correct app based on which quota was applied (proto.master, proto.app, or their category)
+    local application = flow["proto.ndpi"]
+    local ifid = "0" --TODO
+
+    -- TODO
+    require "graph_utils"
+    package.path = dirs.installdir .. "/pro/scripts/lua/modules/?.lua;" .. package.path
+    local shaper_utils = require("shaper_utils")
+    
+    local pools_stats = interface.getHostPoolsStats()
+    local pool_stats = pools_stats and pools_stats[tonumber(pool_id)]
+    local quota_and_protos = shaper_utils.getPoolProtoShapers(ifid, pool_id)
+    local proto = quota_and_protos[application]
+
+    if pool_stats ~= nil and proto ~= nil then
+       local proto_stats = nil
+       local category_stats = nil
+
+       if shaper_utils.extractCategoryFromId(proto.protoId) then
+          proto_stats = pool_stats.ndpi
+       else
+          category_stats = pool_stats.ndpi_categories
+       end
+
+       print("<table style='width:100%; table-layout: fixed;'><tr>")
+       print(string.gsub(printProtocolQuota(proto, proto_stats, category_stats, {traffic=true, time=true}, true), "\n", ""))
+       print("</tr></table>")
+    else
+       print("No quota")
+    end
+end
+-- #######################

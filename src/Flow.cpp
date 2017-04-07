@@ -1299,6 +1299,7 @@ void Flow::lua(lua_State* vm, AddressTree * ptree,
       lua_push_bool_table_entry(vm, "cli.systemhost", src->isSystemHost());
       lua_push_bool_table_entry(vm, "cli.allowed_host", src_match);
       lua_push_int32_table_entry(vm, "cli.network_id", src->get_local_network_id());
+      lua_push_int_table_entry(vm, "cli.pool_id", src->get_host_pool());
     } else {
       lua_push_nil_table_entry(vm, "cli.host");
     }
@@ -1310,6 +1311,7 @@ void Flow::lua(lua_State* vm, AddressTree * ptree,
       lua_push_bool_table_entry(vm, "srv.systemhost", dst->isSystemHost());
       lua_push_bool_table_entry(vm, "srv.allowed_host", dst_match);
       lua_push_int32_table_entry(vm, "srv.network_id", dst->get_local_network_id());
+      lua_push_int_table_entry(vm, "srv.pool_id", dst->get_host_pool());
     } else {
       lua_push_nil_table_entry(vm, "srv.host");
     }

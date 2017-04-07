@@ -205,7 +205,7 @@ else
       s = flowinfo2hostname(flow,"srv",ifstats.vlan)
 
       cli_max_rate = shaper_utils.getShaperMaxRate(ifstats.id, flow["shaper.cli2srv_ingress"]) if(cli_max_rate == "") then cli_max_rate = -1 end
-      srv_max_rate =shaper_utils.getShaperMaxRate(ifstats.id, flow["shaper.cli2srv_egress"]) if(srv_max_rate == "") then srv_max_rate = -1 end
+      srv_max_rate = shaper_utils.getShaperMaxRate(ifstats.id, flow["shaper.cli2srv_egress"]) if(srv_max_rate == "") then srv_max_rate = -1 end
       max_rate = getFlowMaxRate(cli_max_rate, srv_max_rate)
       print("<td nowrap>"..c.." <i class='fa fa-arrow-right'></i> "..s.."</td><td>"..shaper_utils.shaperRateToString(max_rate).."</td></tr>")
 
@@ -214,6 +214,15 @@ else
       max_rate = getFlowMaxRate(cli_max_rate, srv_max_rate)
       print("<td nowrap>"..c.." <i class='fa fa-arrow-left'></i> "..s.."</td><td>"..shaper_utils.shaperRateToString(max_rate).."</td></tr>")
       print("</tr>")
+
+      if flow["cli.pool_id"] ~= nil and flow["srv.pool_id"] ~= nil then
+         print("<tr><th width=30% rowspan=2>Flow Quota</th>")
+         print("<td>"..c.." <i class='fa fa-arrow-right'></i> "..s.."</td>")
+         print("<td id='cli2srv_quota'></td></tr>")
+         print("<td nowrap>"..c.." <i class='fa fa-arrow-left'></i> "..s.."</td>")
+         print("<td id='srv2cli_quota'>".."".."</td>")
+         print("</tr>")
+      end
    end
 
 
@@ -645,6 +654,8 @@ print [[/lua/flow_stats.lua',
 			$('#s2clost').html(formatPackets(rsp["s2clost"]));
 			$('#c2sretr').html(formatPackets(rsp["c2sretr"]));
 			$('#s2cretr').html(formatPackets(rsp["s2cretr"]));
+         if (rsp["cli2srv_quota"]) $('#cli2srv_quota').html(rsp["cli2srv_quota"]);
+         if (rsp["srv2cli_quota"]) $('#srv2cli_quota').html(rsp["cli2srv_quota"]);
 
 			/* **************************************** */
 
