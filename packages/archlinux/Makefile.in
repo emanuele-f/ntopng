@@ -1,0 +1,64 @@
+# 
+# Adapted from https://aur.archlinux.org/packages/ntopng-git/
+# Original credit: jackos2500 <jackos1998@gmail.com>
+#
+# Maintainer: Emanuele Faranda <contact faranda at ntop dot org>
+#
+pkgname=ntopng
+pkgver=@NTOPNG_VERS@
+pkgrel=1
+pkgdesc='The next generation version of the original ntop, a network traffic probe that shows the network usage'
+arch=('x86_64' 'i686' 'armv7h')
+url='http://www.ntop.org/'
+license=('GPL3')
+depends=('redis' 'geoip' 'libmariadbclient')
+makedepends=('git' 'glib2' 'automake' 'libtool' 'geoip' 'libpcap' 'wget' 'libxml2' 'sqlite' 'curl' 'libmariadbclient')
+provides=('ntopng')
+
+source=()
+sha256sums=()
+
+build() {
+  srcdir="$PWD/../../../.."
+
+  cd "${srcdir}/nDPI"
+  ./autogen.sh
+  make
+
+  cd "${srcdir}/ntopng"
+
+  ./autogen.sh
+  ./configure --prefix=/usr
+  make geoip
+  make
+}
+
+package() {
+  srcdir="$PWD/../../../.."
+  datadir="${pkgdir}/usr/share/ntopng"
+
+  cd "${srcdir}/ntopng"
+
+  make DESTDIR="$pkgdir" install
+  mv $pkgdir/usr/man $pkgdir/usr/share/
+  mkdir -p ${pkgdir}/usr/lib/systemd/system
+  install -m644 "${srcdir}/ntopng/packages/etc/systemd/system/ntopng.service" "$pkgdir/usr/lib/systemd/system"
+  mkdir -p ${pkgdir}/etc/init.d
+  install -m755 "${srcdir}/ntopng/packages/etc/init.d/ntopng" "$pkgdir/etc/init.d"
+
+  # fix pro lua paths
+  rm -rf ${datadir}/scripts/lua/pro
+  mkdir -p ${datadir}/pro
+  cp -r ./pro/httpdocs ${datadir}/pro/httpdocs
+  cp -r ./pro/scripts ${datadir}/pro/scripts
+  ln -s ${datadir}/pro/scripts/lua ${datadir}/scripts/lua/pro
+
+  #	compress the pro files and build the luar
+  find ${datadir}/pro -name "*.lua" -type f -exec ${srcdir}/ntopng/pro/utils/snzip -c -i {} -o {}r \;
+
+  #	remove plaintext pro lua files
+  find ${datadir}/pro -name "*.lua" -type f -exec rm {} ';';
+
+  #	rename the luar as if they were normal lua files for installation
+  find ${datadir}/pro -name "*.luar" -type f -exec echo {} \; | sed 's/.luar//' | xargs -I '{}' mv '{}'.luar '{}'.lua
+}
