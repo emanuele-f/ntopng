@@ -222,6 +222,20 @@ build-rpm-ntopng-data: geoip
 	@rpm -qpl $(HOME)/rpmbuild/RPMS/noarch/$(RPM_DATA_PKG)
 	@echo "The package is now available in $(HOME)/rpmbuild/RPMS/noarch/$(RPM_DATA_PKG)"
 
+build-archlinux:
+	cd ./packages/archlinux && ./configure
+	cd ./packages/archlinux && makepkg -f -p ./Makefile
+	@{ \
+	cd ./packages/archlinux;\
+	source /etc/makepkg.conf;\
+	ARCH=`uname -m`;\
+	PKG_NAME=`makepkg -f -p ./Makefile --packagelist | grep $$ARCH`;\
+	PKG_FILE="`echo $${PKG_NAME}$${PKGEXT}`";\
+	if [ -f "$$PKG_FILE" ]; then \
+	  echo "The package is now available in `readlink -f .`/$$PKG_FILE"; \
+	fi;\
+	}
+
 docs:
 	cd doc && doxygen doxygen.conf
 
