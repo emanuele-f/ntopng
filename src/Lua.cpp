@@ -694,7 +694,8 @@ static int ntop_get_interface_macs_info(lua_State* vm) {
   u_int32_t toSkip = 0, maxHits = CONST_MAX_NUM_HITS;
   u_int16_t vlan_id = 0;
   bool a2zSortOrder = true,
-    skipSpecialMacs = false, hostMacsOnly = false;
+    skipSpecialMacs = false, hostMacsOnly = false,
+    homeNetworkOnly = false;
 
   if(lua_type(vm, 1) == LUA_TSTRING) {
     sortColumn = (char*)lua_tostring(vm, 1);
@@ -728,13 +729,15 @@ static int ntop_get_interface_macs_info(lua_State* vm) {
     }
   }
 
+  if(lua_type(vm, 9) == LUA_TBOOLEAN) homeNetworkOnly = lua_toboolean(vm, 9);
+
   if(!ntop_interface ||
      ntop_interface->getActiveMacList(vm,
 				      0, /* bridge InterfaceId - TODO pass Id 0,1 for bridge devices*/
 				      vlan_id, skipSpecialMacs,
 				      hostMacsOnly, manufacturer,
 				      sortColumn, maxHits,
-				      toSkip, a2zSortOrder) < 0)
+				      toSkip, a2zSortOrder, homeNetworkOnly) < 0)
     return(CONST_LUA_ERROR);
 
   return(CONST_LUA_OK);
@@ -879,29 +882,19 @@ static int ntop_get_interface_macs_manufacturers(lua_State* vm) {
   NetworkInterface *ntop_interface = getCurrentInterface(vm);
   u_int32_t maxHits = CONST_MAX_NUM_HITS;
   u_int16_t vlan_id = 0;
-  bool skipSpecialMacs = false, hostMacsOnly = false;
+  bool skipSpecialMacs = false, hostMacsOnly = false, homeNetworkOnly = false;
 
-  if(lua_type(vm, 1) == LUA_TNUMBER) {
-    vlan_id = (u_int16_t)lua_tonumber(vm, 1);
-
-    if(lua_type(vm, 2) == LUA_TNUMBER) {
-      maxHits = (u_int16_t)lua_tonumber(vm, 2);
-
-      if(lua_type(vm, 3) == LUA_TBOOLEAN) {
-        skipSpecialMacs = lua_toboolean(vm, 3) ? true : false;
-
-        if(lua_type(vm, 4) == LUA_TBOOLEAN) {
-          hostMacsOnly = lua_toboolean(vm, 4) ? true : false;
-        }
-      }
-    }
-  }
+  if(lua_type(vm, 1) == LUA_TNUMBER) vlan_id = (u_int16_t)lua_tonumber(vm, 1);
+  if(lua_type(vm, 2) == LUA_TNUMBER) maxHits = (u_int16_t)lua_tonumber(vm, 2);
+  if(lua_type(vm, 3) == LUA_TBOOLEAN) skipSpecialMacs = lua_toboolean(vm, 3);
+  if(lua_type(vm, 4) == LUA_TBOOLEAN) hostMacsOnly = lua_toboolean(vm, 4);
+  if(lua_type(vm, 5) == LUA_TBOOLEAN) homeNetworkOnly = lua_toboolean(vm, 5);
 
   if(!ntop_interface ||
      ntop_interface->getActiveMacManufacturers(vm,
 					       0, /* bridge_iface_idx - TODO */
 					       vlan_id, skipSpecialMacs,
-					       hostMacsOnly,maxHits) < 0)
+					       hostMacsOnly,maxHits, homeNetworkOnly) < 0)
     return(CONST_LUA_ERROR);
 
   return(CONST_LUA_OK);

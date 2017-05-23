@@ -175,7 +175,7 @@ class NetworkInterface {
 	       u_int8_t bridge_iface_idx,
 	       u_int16_t vlan_id, bool skipSpecialMacs,
 	       bool hostMacsOnly, const char *manufacturer,
-	       char *sortColumn);
+	       char *sortColumn, bool homeNetworkOnly);
 
   bool isNumber(const char *str);
   bool validInterface(char *name);
@@ -375,12 +375,12 @@ class NetworkInterface {
 		       bool skipSpecialMacs,
 		       bool hostMacsOnly, const char *manufacturer,
 		       char *sortColumn, u_int32_t maxHits,
-		       u_int32_t toSkip, bool a2zSortOrder);
+		       u_int32_t toSkip, bool a2zSortOrder, bool homeNetworkOnly);
   int getActiveMacManufacturers(lua_State* vm,
 				u_int8_t bridge_iface_idx,
 				u_int16_t vlan_id,
 				bool skipSpecialMacs,
-				bool hostMacsOnly, u_int32_t maxHits);
+				bool hostMacsOnly, u_int32_t maxHits, bool homeNetworkOnly);
   void getFlowsStats(lua_State* vm);
   void getNetworksStats(lua_State* vm);
 #ifdef NOTUSED

@@ -1091,6 +1091,7 @@ local  en = {
       manufacturer = "Manufacturer",
       all_devices = "All Devices",
       hosts_only = "Hosts Only",
+      home_devices = "Home Devices",
       all_manufacturers = "All Manufacturers",
    },
 
@@ -1258,8 +1259,7 @@ local  en = {
    flow_search_from_aggregated = "(Aggregated)",
    summary = "Summary",
    date_from = "Begin Date/Time:",
-   date_to    = "End Date/Time:"
-
+   date_to    = "End Date/Time:",
 }
 
 return {en = en}

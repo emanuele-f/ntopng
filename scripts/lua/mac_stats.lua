@@ -12,6 +12,7 @@ sendHTTPContentTypeHeader('text/html')
 if (group_col == nil) then
    group_col = "mac"
 end
+local ifstats = interface.getStats()
 
 ntop.dumpFile(dirs.installdir .. "/httpdocs/inc/header.inc")
 
@@ -21,15 +22,14 @@ dofile(dirs.installdir .. "/scripts/lua/inc/menu.lua")
 local base_url = ntop.getHttpPrefix() .. "/lua/mac_stats.lua"
 local page_params = {}
 
-local host_macs_only = false
-local host_macs_only_filter = ""
+local devices_mode = ""
+local devices_mode_filter = ""
 
-if(not isEmptyString(_GET["host_macs_only"])) then
-   if(_GET["host_macs_only"]) == "true" then host_macs_only = true else host_macs_only = false end
-   page_params["host_macs_only"] = _GET["host_macs_only"]
-   host_macs_only_filter = '<span class="glyphicon glyphicon-filter"></span>'
+if not isEmptyString(_GET["devices_mode"]) then
+   devices_mode = _GET["devices_mode"]
+   page_params["devices_mode"] = devices_mode
+   devices_mode_filter = '<span class="glyphicon glyphicon-filter"></span>'
 end
-
 
 local manufacturer = nil
 local manufacturer_filter = ""
@@ -37,6 +37,20 @@ if(not isEmptyString(_GET["manufacturer"])) then
    manufacturer = _GET["manufacturer"]
    page_params["manufacturer"] = manufacturer
    manufacturer_filter = '<span class="glyphicon glyphicon-filter"></span>'
+end
+
+local host_macs_only
+if devices_mode == "hosts_only" or devices_mode == "home_devices" then
+   host_macs_only = true
+else
+   host_macs_only = false
+end
+
+local home_network_only
+if devices_mode == "home_devices" then
+   home_network_only = true
+else
+   home_network_only = false
 end
 
 print [[
@@ -57,8 +71,10 @@ print [[
 ]]
 
 local title
-if host_macs_only == true then
+if devices_mode == "hosts_only" then
    title = i18n("mac_stats.layer_2_host_devices")
+elseif devices_mode == "home_devices" then
+   title = i18n("mac_stats.home_devices")
 else
    title = i18n("mac_stats.all_layer_2_devices")
 end
@@ -82,17 +98,29 @@ print('buttons: [')
 
    -- Filter MACS
    local hosts_macs_params = table.clone(page_params)
-   hosts_macs_params.host_macs_only = nil
-   print('\'<div class="btn-group"><button class="btn btn-link dropdown-toggle" data-toggle="dropdown">'..i18n("mac_stats.filter_macs")..host_macs_only_filter..'<span class="caret"></span></button> <ul class="dropdown-menu" role="menu" style="min-width: 90px;"><li><a href="')
-   hosts_macs_params.host_macs_only = "false"
+   hosts_macs_params.devices_mode = nil
+   print('\'<div class="btn-group"><button class="btn btn-link dropdown-toggle" data-toggle="dropdown">'..i18n("mac_stats.filter_macs")..devices_mode_filter..'<span class="caret"></span></button> <ul class="dropdown-menu" role="menu" style="min-width: 90px;"><li><a href="')
    print(getPageUrl(base_url, hosts_macs_params))
    print('">'..i18n("mac_stats.all_devices")..'</a></li>')
+
+   -- hosts_only
    print('<li')
-   if host_macs_only == true then print(' class="active"') end
+   if devices_mode == "hosts_only" then print(' class="active"') end
    print('><a href="')
-   hosts_macs_params.host_macs_only = "true"
+   hosts_macs_params.devices_mode = "hosts_only"
    print(getPageUrl(base_url, hosts_macs_params))
    print('">'..i18n("mac_stats.hosts_only")..'</a></li>')
+
+   -- home devices
+   if isBridgeInterface(ifstats) then
+      print('<li')
+      if devices_mode == "home_devices" then print(' class="active"') end
+      print('><a href="')
+      hosts_macs_params.devices_mode = "home_devices"
+      print(getPageUrl(base_url, hosts_macs_params))
+      print('">'..i18n("mac_stats.home_devices")..'</a></li>')
+   end
+
    print("</div>'")
 
    -- Filter Manufacturers
@@ -105,7 +133,7 @@ print('buttons: [')
           <li><a href="]] print(getPageUrl(base_url, manufacturer_params)) print[[">]] print(i18n("mac_stats.all_manufacturers")) print[[</a></li>\
    ]]
 
-   for manuf, count in pairsByKeys(interface.getMacManufacturers(), asc) do
+   for manuf, count in pairsByKeys(interface.getMacManufacturers(nil, nil, host_macs_only, host_macs_only, home_network_only), asc) do
       manufacturer_params.manufacturer = manuf
       print('<li')
       if manufacturer == manuf then print(' class="active"') end
@@ -129,15 +157,24 @@ print [[
                                 css: {
                                    textAlign: 'center'
                                 }
-           },
-                         {
+           }, {
 			     title: "]] print(i18n("mac_address")) print[[",
 				 field: "column_mac",
 				 sortable: true,
                              css: {
 			        textAlign: 'left'
 			     }
-				 },
+				 }, {
+                                title: "Name",
+                                field: "name",]]
+if devices_mode ~= "hosts_only" and devices_mode ~= "home_devices" then
+   print[[ hidden: true,]]
+end
+print[[
+                                css: {
+                                   textAlign: 'left'
+                                }
+           },
                          {
 			     title: "]] print(i18n("mac_stats.manufacturer")) print[[",
 				 field: "column_manufacturer",

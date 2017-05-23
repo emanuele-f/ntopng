@@ -22,6 +22,13 @@ function mac2record(mac)
    if(manufacturer == nil) then manufacturer = "" end
    record["column_manufacturer"] = manufacturer
 
+   local hosts_stats = interface.getHostsInfo(false, nil, 1, nil, nil,
+            nil, nil, nil, nil, nil, mac["mac"])
+   for _, host in pairs(hosts_stats.hosts) do
+      record["name"] = host["name"]
+      break
+   end
+
    record["column_arp_sent"] = formatValue(mac["arp_requests.sent"] + mac["arp_replies.sent"])
    record["column_arp_rcvd"] = formatValue(mac["arp_requests.rcvd"] + mac["arp_replies.rcvd"])
 

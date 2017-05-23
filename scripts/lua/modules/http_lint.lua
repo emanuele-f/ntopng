@@ -176,6 +176,12 @@ local function validateHttpMode(mode)
    return validateChoice(modes, mode)
 end
 
+local function validateDevicesMode(mode)
+   local modes = {"hosts_only", "home_devices"}
+
+   return validateChoice(modes, mode)
+end
+
 local function validatePidMode(mode)
    local modes = {"l4", "l7", "host", "apps"}
 
@@ -859,7 +865,7 @@ local known_parameters = {
    ["tracked"]                 =  validateNumber,                --
    ["ajax_format"]             =  validateAjaxFormat,            -- iface_hosts_list
    ["include_special_macs"]    =  validateBool,                  --
-   ["host_macs_only"]          =  validateBool,                  --
+   ["devices_mode"]            =  validateDevicesMode,           --
    ["host_stats_flows"]        =  validateBool,                  -- True if host_get_json should return statistics regarding host flows
    ["showall"]                 =  validateBool,                  -- report.lua
    ["addvlan"]                 =  validateBool,                  -- True if VLAN must be added to the result
