@@ -224,7 +224,7 @@ build-rpm-ntopng-data: geoip
 
 build-archlinux:
 	cd ./packages/archlinux && ./configure
-	cd ./packages/archlinux && makepkg -f -p ./Makefile
+	cd ./packages/archlinux && makepkg -f -s --noconfirm -p ./Makefile
 	@{ \
 	cd ./packages/archlinux;\
 	source /etc/makepkg.conf;\
