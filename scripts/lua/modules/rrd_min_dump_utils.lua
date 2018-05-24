@@ -3,6 +3,7 @@
 require "lua_utils"
 require "alert_utils"
 require "graph_utils"
+require "rrd_utils"
 
 local os_utils = require "os_utils"
 local top_talkers_utils = require "top_talkers_utils"
@@ -65,13 +66,13 @@ function rrd_dump.subnet_update_rrds(when, ifstats, basedir, verbose)
     end
 
     ts_utils.append(ts_schemas.subnet_traffic(), {ifid=ifstats.id, subnet=subnet,
-              ingress_bytes=sstats["ingress"], egress_bytes=sstats["egress"],
-              inner_bytes=sstats["inner"]}, when)
+              bytes_ingress=sstats["ingress"], bytes_egress=sstats["egress"],
+              bytes_inner=sstats["inner"]}, when)
     ntop.tsSet(when, "iface:subnetstats", subnet, "bytes", tolongint(sstats["egress"]), tolongint(sstats["inner"]))
 
     ts_utils.append(ts_schemas.subnet_broadcast_traffic(), {ifid=ifstats.id, subnet=subnet,
-              ingress_bytes=sstats["broadcast"]["ingress"], egress_bytes=sstats["broadcast"]["egress"],
-              inner_bytes=sstats["broadcast"]["inner"]}, when)
+              bytes_ingress=sstats["broadcast"]["ingress"], bytes_egress=sstats["broadcast"]["egress"],
+              bytes_inner=sstats["broadcast"]["inner"]}, when)
     ntop.tsSet(when, "iface:subnetstats", subnet, "broadcast_bytes", tolongint(sstats["broadcast"]["ingress"]), tolongint(sstats["broadcast"]["egress"]))
   end
 end

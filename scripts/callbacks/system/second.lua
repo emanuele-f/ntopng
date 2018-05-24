@@ -4,6 +4,7 @@
 
 local dirs = ntop.getDirs()
 package.path = dirs.installdir .. "/scripts/lua/modules/?.lua;" .. package.path
+package.path = dirs.installdir .. "/scripts/lua/modules/timeseries/?.lua;" .. package.path
 
 -- do NOT include lua_utils here, it's not necessary, keep it light!
 local os_utils = require "os_utils"
@@ -26,10 +27,10 @@ callback_utils.foreachInterface(ifnames, interface_rrd_creation_enabled, functio
 
    -- ZMQ stats
    if ifstats.zmqRecvStats ~= nil then
-      ts_utils.append(ts_schemas.iface_zmq_flows(), {ifid=ifstats.id, num_flows=ifstats.zmqRecvStats.flows}, when)
+      ts_utils.append(ts_schemas.iface_zmq_recv_flows(), {ifid=ifstats.id, num_flows=ifstats.zmqRecvStats.flows}, when)
    else
       -- Packet interface
-      ts_utils.append(ts_schemas.iface_drops(), {ifid=ifstats.id, num_drops=ifstats.stats.drops}, when)
+      ts_utils.append(ts_schemas.iface_drops(), {ifid=ifstats.id, packets=ifstats.stats.drops}, when)
    end
 end)
 

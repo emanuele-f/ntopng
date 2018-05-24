@@ -7,6 +7,9 @@ local driver = {}
 local os_utils = require("os_utils")
 local ts_types = require("ts_types")
 
+-- TODO remove this dependency
+require("graph_utils")
+
 local RRD_CONSOLIDATION_FUNCTION = "AVERAGE"
 
 local type_to_rrdtype = {
@@ -43,7 +46,7 @@ local supported_steps = {
   }
 }
 
--- E.g
+-- TODO
 --  RRA:HWPREDICT:1440:0.1:0.0035:288
 
 -------------------------------------------------------
@@ -61,31 +64,43 @@ end
 
 -------------------------------------------------------
 
-local function get_fname_for_schema(schema_name)
-  if string.find(schema_name, "traffic") then
-    return "bytes"
+-- TODO remove after migrating to the new path format
+-- Maps second tag name to getRRDName
+local HOST_PREFIX_MAP = {
+  host = "",
+  subnet = "net:",
+  flowdev_port = "flow_device:",
+  sflowdev_port = "sflow:",
+  snmp_if = "snmp:",
+}
+
+local function get_fname_for_schema(schema, tags)
+  if schema.options.rrd_fname ~= nil then
+    return schema.options.rrd_fname
   end
 
-  return nil
+  -- return the last defined tag
+  return tags[schema._tags[#schema._tags]]
 end
 
-local function schema_get_path(base_path, schema, tags)
+local function schema_get_path(schema, tags)
   local parts = {schema.name, }
+  local rrd
 
-  for _, tag in ipairs(schema._tags) do
-    parts[#parts + 1] = getPathFromKey(trimSpace(tags[tag]))
+  -- ifid is mandatory here
+  local ifid = tags.ifid
+  local host_or_network = nil
+
+  if string.find(schema.name, "iface:") == nil and string.find(schema.name, "mac:") == nil then
+    local parts = split(schema.name, ":")
+    tprint(schema.name)
+    host_or_network = (HOST_PREFIX_MAP[parts[1]] or parts[1]) .. tags[schema._tags[2]]
   end
 
-  local fname = get_fname_for_schema(schema.name)
-  if fname ~= nil then
-    parts[#parts + 1] = fname
-  end
+  local path = getRRDName(ifid, host_or_network)
+  local rrd = get_fname_for_schema(schema, tags)
 
-  -- remove the RRD name
-  local rrd = parts[#parts]
-  parts[#parts] = nil
-
-  return base_path .. "/" .. table.concat(parts, "/"), rrd
+  return path, rrd
 end
 
 -------------------------------------------------------
@@ -115,7 +130,7 @@ end
 local function get_step_key(schema)
   local step_k = tostring(schema.options.step)
 
-  if starts(schema.name, "iface:tcp_") then
+  if string.find(schema.name, "iface:tcp_") == 0 then
     -- This is an extended counter
     step_k = step_k .. "_ext"
   end
@@ -125,7 +140,7 @@ end
 
 local function create_rrd(schema, path)
   if not ntop.exists(path) then
-    local heartbeat = schema.options.step * 2
+    local heartbeat = schema.options.rrd_heartbeat or (schema.options.step * 2)
     local params = {path, schema.options.step}
 
     local metrics_map = map_metrics_to_rrd_columns(schema._metrics)
@@ -165,12 +180,12 @@ end
 
 local function verify_schema_compatibility(schema)
   if not supported_steps[get_step_key(schema)] then
-    io.write("[TS_RRD.ERROR] Unsupported step: " .. schema.options.step)
+    io.write("[TS_RRD.ERROR] Unsupported step: " .. schema.options.step .. " in shcema " .. schema.name)
     return false
   end
 
   if schema.tags.ifid == nil then
-    io.write("[TS_RRD.ERROR] Missing ifid tag")
+    io.write("[TS_RRD.ERROR] Missing ifid tag in schema " .. schema.name)
     return false
   end
 
@@ -182,12 +197,31 @@ function driver:append(schema, timestamp, tags, metrics)
     return false
   end
 
-  local base, rrd = schema_get_path(self.base_path, schema, tags)
+  -- TEST
+  --local ts_schema = require("ts_schema")
+  --local _schema = ts_schema:new("host:traffic", {step=300})
+  --_schema:addTag("ifid")
+  --_schema:addTag("host")
+  --_schema:addMetric("bytes_sent", ts_types.counter)
+  --_schema:addMetric("bytes_rcvd", ts_types.counter)
+
+  --base, rrd = schema_get_path(_schema, {ifid="0", host="192.168.1.2"})
+  --rrdfile = os_utils.fixPath(base .. "/" .. rrd .. ".rrd")
+  --tprint(rrdfile)
+  -- TEST
+
+  local base, rrd = schema_get_path(schema, tags)
   local rrdfile = os_utils.fixPath(base .. "/" .. rrd .. ".rrd")
+
+  -- TEST
+  if (rrdfile ~= "/var/tmp/ntopng/0/rrd/packets.rrd") and (rrdfile ~= "/var/tmp/ntopng/0/rrd/drops.rrd") and (rrdfile ~= "/var/tmp/ntopng/0/rrd/bytes.rrd") then
+    tprint(rrdfile)
+  end
+  -- TEST
 
   ntop.mkdir(base)
   create_rrd(schema, rrdfile)
-  update_rrd(schema, rrdfile, timestamp, tags, metrics)
+  update_rrd(schema, rrdfile, timestamp, metrics)
 
   return true
 end

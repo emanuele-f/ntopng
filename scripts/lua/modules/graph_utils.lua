@@ -6,7 +6,6 @@ require "db_utils"
 require "historical_utils"
 local host_pools_utils = require "host_pools_utils"
 local os_utils = require "os_utils"
-local ts_utils = require "ts_utils"
 local have_nedge = ntop.isnEdge()
 
 local top_rrds = {
@@ -223,6 +222,7 @@ function getRRDName(ifid, host_or_network, rrdFile)
       rrdname = os_utils.fixPath(dirs.workingdir .. "/" .. ifid .. "/asnstats/")
    elseif host_or_network ~= nil and string.starts(host_or_network, 'country:') then
       host_or_network = string.gsub(host_or_network, 'country:', '')
+      tprint("aooaodoasodasodoaoo****************")
       rrdname = os_utils.fixPath(dirs.workingdir .. "/" .. ifid .. "/countrystats/")
    else
       rrdname = os_utils.fixPath(dirs.workingdir .. "/" .. ifid .. "/rrd/")

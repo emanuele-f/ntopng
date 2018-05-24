@@ -21,27 +21,27 @@ function ts_schema:new(name, options)
 end
 
 function ts_schema:addTag(name)
-  self._tags[#self.tags + 1] = name
+  self._tags[#self._tags + 1] = name
   self.tags[name] = 1
 end
 
 -- metric_type: a type in ts_utils.metrics
 function ts_schema:addMetric(name, metric_type)
-  self._metrics[#self.metrics + 1] = name
+  self._metrics[#self._metrics + 1] = name
   self.metrics[name] = {["type"]=metric_type}
 end
 
 function ts_schema:verifyTags(tags)
   for tag in pairs(self.tags) do
     if not tags[tag] then
-      io.write("[TS.ERROR] Missing TAG " .. tag .. "\n")
+      io.write("[TS.ERROR] Missing TAG " .. tag .. " in schema " .. self.name .. "\n")
       return false
     end
   end
 
   for tag in pairs(tags) do
     if not self.tags[tag] then
-      io.write("[TS.ERROR] Unknown TAG " .. tag .. "\n")
+      io.write("[TS.ERROR] Unknown TAG " .. tag .. " in schema " .. self.name .. "\n")
       return false
     end
   end
@@ -55,7 +55,7 @@ function ts_schema:verifyTagsAndMetrics(tags_and_metrics)
 
   for tag in pairs(self.tags) do
     if not tags_and_metrics[tag] then
-      io.write("[TS.ERROR] Missing TAG " .. tag .. "\n")
+      io.write("[TS.ERROR] Missing TAG " .. tag  .. " in schema " .. self.name .. "\n")
       return nil
     end
 
@@ -64,7 +64,7 @@ function ts_schema:verifyTagsAndMetrics(tags_and_metrics)
 
   for metric in pairs(self.metrics) do
     if not tags_and_metrics[metric] then
-      io.write("[TS.ERROR] Missing Metric " .. metric .. "\n")
+      io.write("[TS.ERROR] Missing Metric " .. metric  .. " in schema " .. self.name .. "\n")
       return nil
     end
 
@@ -73,7 +73,7 @@ function ts_schema:verifyTagsAndMetrics(tags_and_metrics)
 
   for item in pairs(tags_and_metrics) do
     if not self.tags[item] and not self.metrics[item] then
-      io.write("[TS.ERROR] Unknown TAG/Metric " .. item .. "\n")
+      io.write("[TS.ERROR] Unknown TAG/Metric " .. item  .. " in schema " .. self.name .. "\n")
       return nil
     end
   end
