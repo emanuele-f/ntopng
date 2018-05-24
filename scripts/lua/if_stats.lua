@@ -24,6 +24,15 @@ require "alert_utils"
 require "db_utils"
 require "rrd_utils"
 
+-----
+
+local ts_utils = require("ts_utils")
+local ts_schemas = require("ts_schemas")
+
+ts_utils.append(ts_schemas.host_traffic(), {ifname="wlan0", host="192.168.1.1", sent_bytes=4131, rcvd_bytes=13123})
+ts_utils.query(ts_schemas.host_traffic(), {ifname="wlan0", host="192.168.1.1"}, 0, 1526987811)
+-----
+
 local have_nedge = ntop.isnEdge()
 
 if ntop.isPro() then

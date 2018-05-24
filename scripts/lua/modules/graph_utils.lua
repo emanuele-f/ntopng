@@ -6,6 +6,7 @@ require "db_utils"
 require "historical_utils"
 local host_pools_utils = require "host_pools_utils"
 local os_utils = require "os_utils"
+local ts_utils = require "ts_utils"
 local have_nedge = ntop.isnEdge()
 
 local top_rrds = {
