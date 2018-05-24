@@ -11,6 +11,7 @@ local ts_types = require("ts_types")
 require("graph_utils")
 
 local RRD_CONSOLIDATION_FUNCTION = "AVERAGE"
+local use_hwpredict = false
 
 local type_to_rrdtype = {
   [ts_types.counter] = "DERIVE",
@@ -20,34 +21,56 @@ local type_to_rrdtype = {
 -- NOTE: to get the actual rentention period, multiply retention_dp * aggregation_dp * step
 local supported_steps = {
   ["1"] = {
-    {aggregation_dp = 1, retention_dp = 86400},   -- 1 second resolution: keep for 1 day
-    {aggregation_dp = 60, retention_dp = 43200},  -- 1 minute resolution: keep for 1 month
-    {aggregation_dp = 3600, retention_dp = 2400}, -- 1 hour resolution: keep for 100 days
+    rra = {
+      {aggregation_dp = 1, retention_dp = 86400},   -- 1 second resolution: keep for 1 day
+      {aggregation_dp = 60, retention_dp = 43200},  -- 1 minute resolution: keep for 1 month
+      {aggregation_dp = 3600, retention_dp = 2400}, -- 1 hour resolution: keep for 100 days
+    }, hwpredict = {
+      row_count = 86400,  -- keep 1 day prediction
+      period = 3600,      -- assume 1 hour periodicity
+    }
   },
   ["60"] = {
-    {aggregation_dp = 1, retention_dp = 1440},    -- 1 minute resolution: keep for 1 day
-    {aggregation_dp = 60, retention_dp = 2400},   -- 1 hour resolution: keep for 100 days
-    {aggregation_dp = 1440, retention_dp = 365},  -- 1 day resolution: keep for 1 year
+    rra = {
+      {aggregation_dp = 1, retention_dp = 1440},    -- 1 minute resolution: keep for 1 day
+      {aggregation_dp = 60, retention_dp = 2400},   -- 1 hour resolution: keep for 100 days
+      {aggregation_dp = 1440, retention_dp = 365},  -- 1 day resolution: keep for 1 year
+    }, hwpredict = {
+      row_count = 10080,  -- keep 1 week prediction
+      period = 1440,      -- assume 1 day periodicity
+    }
   },
   ["60_ext"] = {
-    {aggregation_dp = 1, retention_dp = 43200},   -- 1 minute resolution: keep for 1 month
-    {aggregation_dp = 60, retention_dp = 24000},  -- 1 hour resolution: keep for 100 days
-    {aggregation_dp = 1440, retention_dp = 365},  -- 1 day resolution: keep for 1 year
+    rra = {
+      {aggregation_dp = 1, retention_dp = 43200},   -- 1 minute resolution: keep for 1 month
+      {aggregation_dp = 60, retention_dp = 24000},  -- 1 hour resolution: keep for 100 days
+      {aggregation_dp = 1440, retention_dp = 365},  -- 1 day resolution: keep for 1 year
+    }, hwpredict = {
+      row_count = 10080,  -- keep 1 week prediction
+      period = 1440,      -- assume 1 day periodicity
+    }
   },
   ["300"] = {
-    {aggregation_dp = 1, retention_dp = 288},     -- 5 minute resolution: keep for 1 day
-    {aggregation_dp = 12, retention_dp = 2400},   -- 1 hour resolution: keep for 100 days
-    {aggregation_dp = 288, retention_dp = 365},   -- 1 day resolution: keep for 1 year
+    rra = {
+      {aggregation_dp = 1, retention_dp = 288},     -- 5 minute resolution: keep for 1 day
+      {aggregation_dp = 12, retention_dp = 2400},   -- 1 hour resolution: keep for 100 days
+      {aggregation_dp = 288, retention_dp = 365},   -- 1 day resolution: keep for 1 year
+    }, hwpredict = {
+      row_count = 2016,  -- keep 1 week prediction
+      period = 288,      -- assume 1 day periodicity
+    }
   },
   ["300_ext"] = {
-    {aggregation_dp = 1, retention_dp = 8640},    -- 5 minutes resolution: keep for 1 month
-    {aggregation_dp = 12, retention_dp = 2400},   -- 1 hour resolution: keep for 100 days
-    {aggregation_dp = 288, retention_dp = 365},   -- 1 day resolution: keep for 1 year
+    rra = {
+      {aggregation_dp = 1, retention_dp = 8640},    -- 5 minutes resolution: keep for 1 month
+      {aggregation_dp = 12, retention_dp = 2400},   -- 1 hour resolution: keep for 100 days
+      {aggregation_dp = 288, retention_dp = 365},   -- 1 day resolution: keep for 1 year
+    }, hwpredict = {
+      row_count = 2016,  -- keep 1 week prediction
+      period = 288,      -- assume 1 day periodicity
+    }
   }
 }
-
--- TODO
---  RRA:HWPREDICT:1440:0.1:0.0035:288
 
 -------------------------------------------------------
 
@@ -149,6 +172,7 @@ local function create_rrd(schema, path)
   if not ntop.exists(path) then
     local heartbeat = schema.options.rrd_heartbeat or (schema.options.step * 2)
     local params = {path, schema.options.step}
+    local supported_steps = supported_steps[get_step_key(schema)]
 
     local metrics_map = map_metrics_to_rrd_columns(schema)
     if not metrics_map then
@@ -160,9 +184,18 @@ local function create_rrd(schema, path)
       params[#params + 1] = "DS:" .. metrics_map[idx] .. ":" .. type_to_rrdtype[info.type] .. ':' .. heartbeat .. ':U:U'
     end
 
-    for _, rra in pairs(supported_steps[get_step_key(schema)]) do
+    for _, rra in ipairs(supported_steps.rra) do
       params[#params + 1] = "RRA:" .. RRD_CONSOLIDATION_FUNCTION .. ":0.5:" .. rra.aggregation_dp .. ":" .. rra.retention_dp
     end
+
+    if use_hwpredict then
+      -- NOTE: at most one RRA, otherwise rrd_update crashes.
+      local hwpredict = supported_steps.hwpredict
+      params[#params + 1] = "RRA:HWPREDICT:" .. hwpredict.row_count .. ":0.1:0.0035:" .. hwpredict.period
+    end
+
+    -- NOTE: this is either a bug with unpack or with Lua.cpp make_argv
+    params[#params + 1] = ""
 
     ntop.rrd_create(unpack(params))
   end
