@@ -16,7 +16,7 @@ local ts_schemas = {}
 -------------------------------------------------------
 
 function ts_schemas.profile_traffic()
-  local schema = ts_utils.schema:new("profile:traffic", {step=300, rrd_fname="bytes"})
+  local schema = ts_utils.schema:new("profile:traffic", {step=60, rrd_fname="bytes"})
 
   schema:addTag("ifid")
   schema:addTag("profile")

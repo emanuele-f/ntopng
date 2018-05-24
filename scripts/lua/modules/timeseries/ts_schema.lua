@@ -9,7 +9,7 @@ function ts_schema:new(name, options)
 
   -- required options
   if not options.step then
-    io.write("[TS.ERROR] Missing 'step' option\n")
+    traceError(TRACE_ERROR, TRACE_CONSOLE, "missing step option in schema " .. name)
     return nil
   end
 
@@ -34,14 +34,14 @@ end
 function ts_schema:verifyTags(tags)
   for tag in pairs(self.tags) do
     if not tags[tag] then
-      io.write("[TS.ERROR] Missing TAG " .. tag .. " in schema " .. self.name .. "\n")
+      traceError(TRACE_ERROR, TRACE_CONSOLE, "missing tag '" .. tag .. "' in schema " .. self.name)
       return false
     end
   end
 
   for tag in pairs(tags) do
     if not self.tags[tag] then
-      io.write("[TS.ERROR] Unknown TAG " .. tag .. " in schema " .. self.name .. "\n")
+      traceError(TRACE_ERROR, TRACE_CONSOLE, "unknown tag '" .. tag .. "' in schema " .. self.name)
       return false
     end
   end
@@ -55,7 +55,7 @@ function ts_schema:verifyTagsAndMetrics(tags_and_metrics)
 
   for tag in pairs(self.tags) do
     if not tags_and_metrics[tag] then
-      io.write("[TS.ERROR] Missing TAG " .. tag  .. " in schema " .. self.name .. "\n")
+      traceError(TRACE_ERROR, TRACE_CONSOLE, "missing tag '" .. tag .. "' in schema " .. self.name)
       return nil
     end
 
@@ -64,7 +64,7 @@ function ts_schema:verifyTagsAndMetrics(tags_and_metrics)
 
   for metric in pairs(self.metrics) do
     if not tags_and_metrics[metric] then
-      io.write("[TS.ERROR] Missing Metric " .. metric  .. " in schema " .. self.name .. "\n")
+      traceError(TRACE_ERROR, TRACE_CONSOLE, "missing metric '" .. metric .. "' in schema " .. self.name)
       return nil
     end
 
@@ -73,7 +73,7 @@ function ts_schema:verifyTagsAndMetrics(tags_and_metrics)
 
   for item in pairs(tags_and_metrics) do
     if not self.tags[item] and not self.metrics[item] then
-      io.write("[TS.ERROR] Unknown TAG/Metric " .. item  .. " in schema " .. self.name .. "\n")
+      traceError(TRACE_ERROR, TRACE_CONSOLE, "unknown tag/metric '" .. item .. "' in schema " .. self.name)
       return nil
     end
   end

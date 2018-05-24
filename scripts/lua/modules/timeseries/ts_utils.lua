@@ -55,7 +55,7 @@ end
 
 -----------------------------------------------------------------------
 
-function ts_utils.append(schema, tags_and_metrics, timestamp)
+function ts_utils.append(schema, tags_and_metrics, timestamp, verbose)
   timestamp = timestamp or os.time()
   local tags, data = schema:verifyTagsAndMetrics(tags_and_metrics)
 
@@ -64,6 +64,10 @@ function ts_utils.append(schema, tags_and_metrics, timestamp)
   end
 
   local rv = true
+
+  if verbose then
+    traceError(TRACE_NORMAL, TRACE_CONSOLE, "TS.UPDATE [".. schema.name .."] " .. table.tconcat(tags_and_metrics, "=", ","))
+  end
 
   for _, driver in pairs(ts_utils.listActiveDrivers()) do
     rv = driver:append(schema, timestamp, tags, data) and rv

@@ -119,8 +119,8 @@ local function getRRAParameters(step, resolution, retention_time)
 end
 
 -- This is necessary to keep the current RRD format
-local function map_metrics_to_rrd_columns(schema_metrics)
-  local num = #schema_metrics
+local function map_metrics_to_rrd_columns(schema)
+  local num = #schema._metrics
 
   if num == 1 then
     return {"num"}
@@ -130,14 +130,14 @@ local function map_metrics_to_rrd_columns(schema_metrics)
     return {"ingress", "egress", "inner"}
   end
 
-  io.write("[TS_RRD.ERROR] Unsupported number of metrics: " .. num)
+  traceError(TRACE_ERROR, TRACE_CONSOLE, "unsupported number of metrics (" .. num .. ") in schema " .. schema.name)
   return nil
 end
 
 local function get_step_key(schema)
   local step_k = tostring(schema.options.step)
 
-  if string.find(schema.name, "iface:tcp_") == 0 then
+  if string.find(schema.name, "iface:tcp_") ~= nil then
     -- This is an extended counter
     step_k = step_k .. "_ext"
   end
@@ -150,7 +150,7 @@ local function create_rrd(schema, path)
     local heartbeat = schema.options.rrd_heartbeat or (schema.options.step * 2)
     local params = {path, schema.options.step}
 
-    local metrics_map = map_metrics_to_rrd_columns(schema._metrics)
+    local metrics_map = map_metrics_to_rrd_columns(schema)
     if not metrics_map then
       return false
     end
@@ -179,7 +179,6 @@ local function update_rrd(schema, rrdfile, timestamp, data)
     params[#params + 1] = tolongint(data[metric])
   end
 
-  --io.write("UPDATE: ", rrdfile, " ", table.concat(params, ":"), "\n")
   ntop.rrd_update(rrdfile, unpack(params))
 end
 
@@ -187,12 +186,12 @@ end
 
 local function verify_schema_compatibility(schema)
   if not supported_steps[get_step_key(schema)] then
-    io.write("[TS_RRD.ERROR] Unsupported step: " .. schema.options.step .. " in shcema " .. schema.name)
+    traceError(TRACE_ERROR, TRACE_CONSOLE, "unsupported step '" .. schema.options.step .. "' in schema " .. schema.name)
     return false
   end
 
   if schema.tags.ifid == nil then
-    io.write("[TS_RRD.ERROR] Missing ifid tag in schema " .. schema.name)
+    traceError(TRACE_ERROR, TRACE_CONSOLE, "missing ifid tag in schema " .. schema.name)
     return false
   end
 
