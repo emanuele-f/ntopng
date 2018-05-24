@@ -16,7 +16,7 @@ local ts_schemas = {}
 -------------------------------------------------------
 
 function ts_schemas.profile_traffic()
-  local schema = ts_utils.schema:new("profile:traffic", {step=300, rrd_fname="bytes.rrd"})
+  local schema = ts_utils.schema:new("profile:traffic", {step=300, rrd_fname="bytes"})
 
   schema:addTag("ifid")
   schema:addTag("profile")
@@ -26,9 +26,10 @@ function ts_schemas.profile_traffic()
 end
 
 -------------------------------------------------------
--- DEVICE SCHEMAS
+-- L3 DEVICES SCHEMAS
 -------------------------------------------------------
 
+-- NOTE: always disabled?
 function ts_schemas.mac_traffic()
   local schema = ts_utils.schema:new("mac:traffic", {step=300, rrd_fname="bytes"})
 
@@ -40,6 +41,7 @@ function ts_schemas.mac_traffic()
   return schema
 end
 
+-- NOTE: always disabled?
 function ts_schemas.mac_ndpi_categories()
   local schema = ts_utils.schema:new("mac:ndpi_categories", {step=300})
 
@@ -47,6 +49,43 @@ function ts_schemas.mac_ndpi_categories()
   schema:addTag("mac")
   schema:addTag("category")
   schema:addMetric("bytes", ts_utils.metrics.counter)
+
+  return schema
+end
+
+-------------------------------------------------------
+-- HOST POOLS SCHEMAS
+-------------------------------------------------------
+
+function ts_schemas.host_pool_traffic()
+  local schema = ts_utils.schema:new("host_pool:traffic", {step=300, rrd_fname="bytes"})
+
+  schema:addTag("ifid")
+  schema:addTag("pool")
+  schema:addMetric("bytes_sent", ts_utils.metrics.counter)
+  schema:addMetric("bytes_rcvd", ts_utils.metrics.counter)
+
+  return schema
+end
+
+function ts_schemas.host_pool_blocked_flows()
+  local schema = ts_utils.schema:new("host_pool:blocked_flows", {step=300, rrd_fname="blocked_flows"})
+
+  schema:addTag("ifid")
+  schema:addTag("pool")
+  schema:addMetric("num_flows", ts_utils.metrics.counter)
+
+  return schema
+end
+
+function ts_schemas.host_pool_ndpi()
+  local schema = ts_utils.schema:new("host_pool:ndpi", {step=300})
+
+  schema:addTag("ifid")
+  schema:addTag("pool")
+  schema:addTag("protocol")
+  schema:addMetric("bytes_sent", ts_utils.metrics.counter)
+  schema:addMetric("bytes_rcvd", ts_utils.metrics.counter)
 
   return schema
 end
@@ -229,6 +268,7 @@ function ts_schemas.host_flows()
   return schema
 end
 
+-- NOTE: not shown
 function ts_schemas.host_l4protos()
   local schema = ts_utils.schema:new("host:l4protos", {step=300})
 
@@ -287,7 +327,7 @@ function ts_schemas.iface_packets()
 end
 
 function ts_schemas.iface_zmq_recv_flows()
-  local schema = ts_utils.schema:new("iface:zmq_recv_flows", {step=1, rrd_fname="num_zmq_recv_flows"})
+  local schema = ts_utils.schema:new("iface:zmq_recv_flows", {step=1, rrd_fname="num_zmq_rcvd_flows"})
 
   schema:addTag("ifid")
   schema:addMetric("num_flows", ts_utils.metrics.gauge)
@@ -324,6 +364,7 @@ function ts_schemas.iface_ndpi_categories()
   return schema
 end
 
+-- NOTE: not shown
 function ts_schemas.iface_local2remote()
   local schema = ts_utils.schema:new("iface:local2remote", {step=60, rrd_fname="local2remote"})
 
@@ -333,6 +374,7 @@ function ts_schemas.iface_local2remote()
   return schema
 end
 
+-- NOTE: not shown
 function ts_schemas.iface_remote2local()
   local schema = ts_utils.schema:new("iface:remote2local", {step=60, rrd_fname="remote2local"})
 

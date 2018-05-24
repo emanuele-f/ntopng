@@ -106,7 +106,7 @@ function rrd_dump.profiles_update_stats(when, ifstats, basedir, verbose)
   local basedir = os_utils.fixPath(dirs.workingdir .. "/" .. ifstats.id..'/profilestats')
 
   for pname, ptraffic in pairs(ifstats.profiles) do
-    ts_utils.append(ts_schemas.profile_traffic(), {ifid=ifstats.id, bytes=ptraffic}, when)
+    ts_utils.append(ts_schemas.profile_traffic(), {ifid=ifstats.id, profile=pname, bytes=ptraffic}, when)
     ntop.tsSet(when, 'profilestats', pname, "bytes", tolongint(ptraffic), 0)
   end
 end

@@ -72,6 +72,7 @@ local HOST_PREFIX_MAP = {
   flowdev_port = "flow_device:",
   sflowdev_port = "sflow:",
   snmp_if = "snmp:",
+  host_pool = "pool:",
 }
 
 local function get_fname_for_schema(schema, tags)
@@ -85,6 +86,7 @@ end
 
 local function schema_get_path(schema, tags)
   local parts = {schema.name, }
+  local suffix = ""
   local rrd
 
   -- ifid is mandatory here
@@ -93,11 +95,16 @@ local function schema_get_path(schema, tags)
 
   if string.find(schema.name, "iface:") == nil and string.find(schema.name, "mac:") == nil then
     local parts = split(schema.name, ":")
-    tprint(schema.name)
-    host_or_network = (HOST_PREFIX_MAP[parts[1]] or parts[1]) .. tags[schema._tags[2]]
+    host_or_network = (HOST_PREFIX_MAP[parts[1]] or (parts[1] .. ":")) .. tags[schema._tags[2]]
+
+    if parts[1] == "snmp_if" then
+      suffix = tags.if_index .. "/"
+    elseif (parts[1] == "flowdev_port") or (parts[1] == "sflowdev_port") then
+      suffix = tags.port .. "/"
+    end
   end
 
-  local path = getRRDName(ifid, host_or_network)
+  local path = getRRDName(ifid, host_or_network) .. suffix
   local rrd = get_fname_for_schema(schema, tags)
 
   return path, rrd
@@ -197,27 +204,8 @@ function driver:append(schema, timestamp, tags, metrics)
     return false
   end
 
-  -- TEST
-  --local ts_schema = require("ts_schema")
-  --local _schema = ts_schema:new("host:traffic", {step=300})
-  --_schema:addTag("ifid")
-  --_schema:addTag("host")
-  --_schema:addMetric("bytes_sent", ts_types.counter)
-  --_schema:addMetric("bytes_rcvd", ts_types.counter)
-
-  --base, rrd = schema_get_path(_schema, {ifid="0", host="192.168.1.2"})
-  --rrdfile = os_utils.fixPath(base .. "/" .. rrd .. ".rrd")
-  --tprint(rrdfile)
-  -- TEST
-
   local base, rrd = schema_get_path(schema, tags)
   local rrdfile = os_utils.fixPath(base .. "/" .. rrd .. ".rrd")
-
-  -- TEST
-  if (rrdfile ~= "/var/tmp/ntopng/0/rrd/packets.rrd") and (rrdfile ~= "/var/tmp/ntopng/0/rrd/drops.rrd") and (rrdfile ~= "/var/tmp/ntopng/0/rrd/bytes.rrd") then
-    tprint(rrdfile)
-  end
-  -- TEST
 
   ntop.mkdir(base)
   create_rrd(schema, rrdfile)

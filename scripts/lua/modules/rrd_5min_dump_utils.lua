@@ -33,7 +33,7 @@ function rrd_dump.host_update_stats_rrds(when, hostname, hostbase, host, ifstats
       --if(verbose) then print("["..__FILE__()..":"..__LINE__().."]\t"..k.."\n") end
 
       ts_utils.append(ts_schemas.host_l4protos(), {ifid=ifstats.id, host=hostname,
-                l4proto=k, bytes_sent=host[k..".bytes.sent"], bytes_rcvd=host[k..".bytes.rcvd"]}, when)
+                l4proto=tostring(k), bytes_sent=host[k..".bytes.sent"], bytes_rcvd=host[k..".bytes.rcvd"]}, when)
       ntop.tsSet(when, 'ip', hostname, tostring(k), tolongint(host[k..".bytes.sent"]), tolongint(host[k..".bytes.rcvd"]), when)
 
       --if(verbose) then print("\n["..__FILE__()..":"..__LINE__().."] Updating RRD [".. ifstats.name .."] "..name..'\n') end
