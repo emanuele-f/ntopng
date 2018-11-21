@@ -200,7 +200,7 @@ install_service_conf() {
 # #######################################################
 
 print_usage() {
-	echo "Usage: {n2disk|n2n|test} {start|stop|restart|enable|disable|status|is-active|is-enabled|has-service|log|set-license} <params>"
+	echo "Usage: {n2disk|n2n} {start|stop|restart|enable|disable|status|is-active|is-enabled|has-service|log|set-license} <params>"
 	exit 1
 }
 
@@ -233,7 +233,7 @@ case "$1" in
 	;;
 
 	n2n)
-	SERVICE_NAME="n2n"
+	SERVICE_NAME="edge"
 	CONFIG_INSTALL_TARGET="install-n2n-conf"
 	;;
 
@@ -284,6 +284,7 @@ case "$2" in
 
 	has-service)
 	has_service;
+	;;
 
 # n2disk
 	stats)

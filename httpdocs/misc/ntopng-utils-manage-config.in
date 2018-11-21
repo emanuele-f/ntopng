@@ -128,7 +128,7 @@ function cleanup() {
 
 trap cleanup EXIT
 
-if [[ ( $ACTION != "backup" && $ACTION != "restore" && $ACTION != "check-restore" && $ACTION != "install-n2disk-conf" ) ]]; then
+if [[ ( $ACTION != "backup" && $ACTION != "restore" && $ACTION != "check-restore" && $ACTION != "install-n2disk-conf" && $ACTION != "install-n2n-conf" ) ]]; then
     print_usage
     exit 1
 fi
