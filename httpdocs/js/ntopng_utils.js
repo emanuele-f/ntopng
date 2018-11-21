@@ -567,3 +567,13 @@ function getHistoryParameters(params) {
 
   return baseUrl + new_query;
 }
+
+function genRandomString(length, charset) {
+  var text = "";
+  charset = charset || "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+  for(var i = 0; i < length; i++)
+    text += charset.charAt(Math.floor(Math.random() * charset.length));
+
+  return text;
+}

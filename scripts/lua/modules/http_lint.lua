@@ -1083,6 +1083,7 @@ local known_parameters = {
    ["toggle_quota_exceeded_alert"]                 = validateBool,
    ["toggle_external_alerts"]                      = validateBool,
    ["toggle_influx_auth"]                          = validateBool,
+   ["toggle_remote_assistance"]                    = validateBool,
 
    -- Input fields
    ["minute_top_talkers_retention"]                = validateNumber,
@@ -1313,6 +1314,9 @@ local known_parameters = {
    ["initial_point"]           = validateBool,
    ["extract_now"]             = validateBool,
    ["custom_hosts"]            = validateListOfTypeInline(validateSingleWord),
+   ["create_temporary_user"]   = validateBool,
+   ["n2n_community"]           = validateUnquoted,
+   ["n2n_key"]                 = validateUnquoted,
 
    -- json POST DATA
    ["payload"]                 = { jsonCleanup, validateJSON },

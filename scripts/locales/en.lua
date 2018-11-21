@@ -126,6 +126,7 @@ local lang = {
   ["remove"] = "Remove",
   ["reset"] = "Reset",
   ["restore"] = "Restore",
+  ["running"] = "Running",
   ["save"] = "Save",
   ["save_configuration"] = "Save Configuration",
   ["save_settings"] = "Save Settings",
@@ -2481,6 +2482,10 @@ local lang = {
     ["traffic_rcvd"] = "Traffic Rcvd",
     ["traffic_sent"] = "Traffic Sent",
     ["type"] = "Type",
+  },
+  ["remote_assistance"] = {
+    ["enable_remote_assistance"] = "Enable Remote Assistance",
+    ["remote_assistance"] = "Remote Assistance",
   },
   ["report"] = {
     ["application_breakdown"] = "Application Breakdown",
