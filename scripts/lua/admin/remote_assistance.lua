@@ -5,9 +5,9 @@
 local dirs = ntop.getDirs()
 package.path = dirs.installdir .. "/scripts/lua/modules/?.lua;" .. package.path
 require "lua_utils"
-local assist_utils = require("assist_utils")
+local remote_assistance = require("remote_assistance")
 
-if((not isAdministrator()) or (not assist_utils.isAvailable())) then
+if((not isAdministrator()) or (not remote_assistance.isAvailable())) then
   return
 end
 
@@ -22,10 +22,10 @@ if not table.empty(_POST) then
 
     ntop.setPref("ntopng.prefs.remote_assistance.community", community)
     ntop.setPref("ntopng.prefs.remote_assistance.key", key)
-    assist_utils.createConfig(community, key)
-    assist_utils.enableAndStart()
+    remote_assistance.createConfig(community, key)
+    remote_assistance.enableAndStart()
   else
-    assist_utils.disableAndStop()
+    remote_assistance.disableAndStop()
   end
 end
 
@@ -39,7 +39,7 @@ print("<br>")
 
 local assistace_checked = ""
 
-if assist_utils.isEnabled() then
+if remote_assistance.isEnabled() then
   assistace_checked = "checked"
 end
 
@@ -57,7 +57,7 @@ print [[
         </tr>
         <tr>
           <th>Status</th>
-          <td>]] print(assist_utils.statusLabel()) print[[</td>
+          <td>]] print(remote_assistance.statusLabel()) print[[</td>
         </tr>
         <!-- TODO
         <th>Create Temporary User</th>

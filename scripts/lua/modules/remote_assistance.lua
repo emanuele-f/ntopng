@@ -12,17 +12,18 @@ local DEVICE_IP = "192.168.166.1"
 local SUPERNODE_ADDRESS = "dns.ntop.org:7777"
 local CONF_DIR = dirs.workingdir.."/n2n"
 local CONF_FILE = CONF_DIR .. "/edge.conf"
-local assist_utils = {}
+local remote_assistance = {}
 
 -- ########################################################
 
-function assist_utils.isAvailable()
-  return isAdministrator() and os_utils.hasService(SERVICE_NAME)
+function remote_assistance.isAvailable()
+  return true
+  --return isAdministrator() and os_utils.hasService(SERVICE_NAME)
 end
 
 -- ########################################################
 
-function assist_utils.createConfig(community, key)
+function remote_assistance.createConfig(community, key)
   local prefs = ntop.getPrefs()
 
   if not ntop.mkdir(CONF_DIR) then
@@ -61,33 +62,33 @@ end
 
 -- ########################################################
 
-function assist_utils.isEnabled()
+function remote_assistance.isEnabled()
   return(ntop.getPref("ntopng.prefs.remote_assistance.enabled") == "1")
 end
 
 -- ########################################################
 
-function assist_utils.enableAndStart()
+function remote_assistance.enableAndStart()
   os_utils.enableService(SERVICE_NAME)
   return os_utils.restartService(SERVICE_NAME)
 end
 
 -- ########################################################
 
-function assist_utils.disableAndStop()
+function remote_assistance.disableAndStop()
   os_utils.disableService(SERVICE_NAME)
   return os_utils.stopService(SERVICE_NAME)
 end
 
 -- ########################################################
 
-function assist_utils.getStatus()
+function remote_assistance.getStatus()
   return os_utils.serviceStatus(SERVICE_NAME)
 end
 
 -- ########################################################
 
-function assist_utils.statusLabel()
+function remote_assistance.statusLabel()
   local rv = os_utils.serviceStatus(SERVICE_NAME)
   local color
   local status
@@ -108,4 +109,4 @@ end
 
 -- ########################################################
 
-return assist_utils
+return remote_assistance
