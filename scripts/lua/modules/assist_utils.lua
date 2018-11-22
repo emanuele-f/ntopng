@@ -8,7 +8,6 @@ require "lua_utils"
 local os_utils = require("os_utils")
 
 local SERVICE_NAME = "n2n"
-local DEVICE_MAC = "11:11:11:22:33:44"
 local DEVICE_IP = "192.168.166.1"
 local SUPERNODE_ADDRESS = "dns.ntop.org:7777"
 local CONF_DIR = dirs.workingdir.."/n2n"
@@ -43,11 +42,17 @@ function assist_utils.createConfig(community, key)
   f:write("-k=".. key .."\n")
 
   if not isEmptyString(prefs.user) then
-    f:write("-u="..prefs.user.."\n");
-    f:write("-g="..prefs.user.."\n");
+    -- uid=999(ntopng) gid=999(ntopng) groups=999(ntopng)
+    local res = os_utils.execWithOutput("id " .. prefs.user) or ""
+    local uid = res:gmatch("uid=(%d+)")()
+    local gid = res:gmatch("gid=(%d+)")()
+
+    if((uid ~= nil) and (gid ~= nil)) then
+      f:write("-u=".. uid .."\n");
+      f:write("-g=".. gid .."\n");
+    end
   end
 
-  f:write("-m=".. DEVICE_MAC .."\n")
   f:write("-a=".. DEVICE_IP .."\n")
 
   f:close()

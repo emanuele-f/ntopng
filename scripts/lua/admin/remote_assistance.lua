@@ -83,7 +83,6 @@ print [[
 
     <button class="btn btn-primary" style="float:right; margin-right:1em;" disabled="disabled" type="submit">]] print(i18n("save_settings")) print[[</button>
   </form>
-  <button class="btn btn-default" onclick="generate_credentials();" style="float:right; margin-right:1em;"><i class="fa fa-repeat" aria-hidden="true" data-original-title="" title=""></i> Generate</button>
   <br>
 
   <span>]]
