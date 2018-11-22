@@ -7,7 +7,7 @@ package.path = dirs.installdir .. "/scripts/lua/modules/?.lua;" .. package.path
 require "lua_utils"
 local os_utils = require("os_utils")
 
-local SERVICE_NAME = "n2n"
+local SERVICE_NAME = "edge"
 local DEVICE_IP = "192.168.166.1"
 local SUPERNODE_ADDRESS = "dns.ntop.org:7777"
 local CONF_DIR = dirs.workingdir.."/n2n"
@@ -17,8 +17,7 @@ local assist_utils = {}
 -- ########################################################
 
 function assist_utils.isAvailable()
-  --return isAdministrator() and os_utils.hasService(SERVICE_NAME)
-  return true
+  return isAdministrator() and os_utils.hasService(SERVICE_NAME)
 end
 
 -- ########################################################

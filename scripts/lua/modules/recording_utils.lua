@@ -77,7 +77,8 @@ end
 function recording_utils.isAvailable()
   if isAdministrator() and
      not ntop.isWindows() and
-     not ntop.isnEdge() then
+     not ntop.isnEdge()
+     and os_utils.hasService("n2disk") then
     return true
   end
   return false
