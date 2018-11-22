@@ -539,12 +539,12 @@ local lang = {
   },
   ["discover"] = {
     ["device"] = "Device",
+    ["discovered_devices"] = "Discovered %{manuf} %{sys} %{dev} Devices",
     ["err_unable_to_arp_discovery"] = "Unable to start ARP network discovery",
     ["error_no_discovery_cached"] = "No discovery data has been cached yet.",
     ["error_unable_to_decode_json"] = "Unable to decode cache JSON discovery data.",
     ["ghost_icon_descr"] = "The %{ghost_icon} icon highlights ghost hosts (i.e. they do not belong to the interface IP address network)",
     ["network_discovery"] = "Network Discovery",
-    ["discovered_devices"] = "Discovered %{manuf} %{sys} %{dev} Devices",
     ["network_discovery_datetime"] = "Last Network Discovery",
     ["network_discovery_not_enabled"] = "Network discovery in progress",
   },
@@ -2484,8 +2484,13 @@ local lang = {
     ["type"] = "Type",
   },
   ["remote_assistance"] = {
+    ["ask_admin"] = "Ask the network administrator permission before doing this.",
     ["enable_remote_assistance"] = "Enable Remote Assistance",
+    ["key_descr"] = "This is the key to provide to the support team for assistance.",
+    ["note_sensitive"] = "The information above is sensitive. Only provide it to the ntopng support team.",
+    ["remember_disable"] = "Remember to disable the remote assistance when not needed.",
     ["remote_assistance"] = "Remote Assistance",
+    ["will_create_virtual_network"] = "When enabled, the remote assistance will create an encrypted virtual network to connect remotely to your device.",
   },
   ["report"] = {
     ["application_breakdown"] = "Application Breakdown",

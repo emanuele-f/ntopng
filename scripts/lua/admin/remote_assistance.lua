@@ -56,26 +56,13 @@ print [[
           </td>
         </tr>
         <tr>
-          <th>Status</th>
+          <th>]] print(i18n("status")) print[[</th>
           <td>]] print(remote_assistance.statusLabel()) print[[</td>
         </tr>
-        <!-- TODO
-        <th>Create Temporary User</th>
-          <td>
-            <input name="create_temporary_user" type="checkbox" value="1" ]] print(assistace_checked) print [[/><br>
-            <small>If enabled, a termporary user with admin rights will be created as long as the Remote Assistance is running.</small>
-          </td>
-        -->
         <tr>
-          <th>Community</th>
-          <td><input id="n2n-community" class="form-control" name="n2n_community" value="]] print(ntop.getPref("ntopng.prefs.remote_assistance.community")) print[[" readonly /><br>
-          <small>The community defines a virtual network for this device.</small>
-          </td>
-        </tr>
-        <tr>
-          <th>Key</th>
+          <th>]] print(i18n("key")) print[[</th>
           <td><input id="n2n-key" class="form-control" name="n2n_key" value="]] print(ntop.getPref("ntopng.prefs.remote_assistance.key")) print[[" readonly /><br>
-          <small>The secret key is used to access the above community.</small>
+          <small>]] print(i18n("remote_assistance.key_descr")) print[[</small>
           </td>
         </tr>
       </table>
@@ -89,9 +76,9 @@ print [[
 print(i18n("notes"))
 print[[
   <ul>
-      <li>]] print("The information above is sensitive. Only provide it to the ntopng support team.") print[[</li>
-      <li>]] print("Remember to disable the remote assistance when not needed.") print[[</li>
-      <li>]] print("When enabled, the remote assistance will create an encrypted virtual network to connect remotely to your device. Ask the network administrator permission before doing this.") print[[</li>]]
+      <li>]] print(i18n("remote_assistance.note_sensitive")) print[[</li>
+      <li>]] print(i18n("remote_assistance.remember_disable")) print[[</li>
+      <li>]] print(i18n("remote_assistance.will_create_virtual_network") .. " " .. i18n("remote_assistance.ask_admin")) print[[</li>]]
    print[[
     </ul>
   </span>
@@ -102,8 +89,7 @@ print[[
     function generate_credentials() {
       var today = Math.floor($.now() / 1000 / 86400); // days since first epoch
 
-      $("#n2n-community").val(today + genRandomString(10));   // 15 chars
-      $("#n2n-key").val(genRandomString(20));                 // 20 chars
+      $("#n2n-key").val(genRandomString(10, "123456789"));                 // 10 digits
     }
 
     $("#toggle_remote_assistance").change(function() {
