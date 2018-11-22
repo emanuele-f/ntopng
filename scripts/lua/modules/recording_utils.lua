@@ -413,7 +413,8 @@ function recording_utils.createConfig(ifid, params)
   end
   local n2disk_threads = indexing_threads + 2
 
-  local cores = tonumber(os_utils.execWithOutput("nproc"))
+  local line = os_utils.execWithOutput("nproc")
+  local cores = tonumber(line)
 
   local ntopng_affinity = split(prefs.cpu_affinity, ',')
   local busy_cores = {}
@@ -522,24 +523,23 @@ end
 --! @return true if the service is running, false otherwise
 function recording_utils.isActive(ifid)
   local confifname = getConfigInterfaceName(ifid)
-  local is_active = os_utils.isActive("n2disk", confifname)
-  return ternary(string.match(is_active, "^active"), true, false)
+  return os_utils.isActive("n2disk", confifname)
 end
 
 --! @brief Start (or restart) the traffic recording service
 --! @param ifid the interface identifier 
 function recording_utils.restart(ifid)
   local confifname = getConfigInterfaceName(ifid)
-  os_utils.enable("n2disk", confifname)
-  os_utils.restart("n2disk", confifname)
+  os_utils.enableService("n2disk", confifname)
+  os_utils.restartService("n2disk", confifname)
 end
 
 --! @brief Stop the traffic recording service
 --! @param ifid the interface identifier 
 function recording_utils.stop(ifid)
   local confifname = getConfigInterfaceName(ifid)
-  os_utils.stop("n2disk", confifname)
-  os_utils.disable("n2disk", confifname)
+  os_utils.stopService("n2disk", confifname)
+  os_utils.disableService("n2disk", confifname)
 end
 
 --! @brief Return the log trace of the traffic recording service (n2disk)

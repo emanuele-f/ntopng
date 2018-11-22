@@ -226,7 +226,6 @@ case "$1" in
 	else
 		IFNAME="$3"
 		check_interface
-		SERVICE_NAME="n2disk"
 		SERVICE_PARAM="$IFNAME"
 		LOG_FILE="/var/log/n2disk/n2disk-$IFNAME.log"
 	fi

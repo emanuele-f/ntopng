@@ -67,7 +67,7 @@ end
 --! @brief Execute service control tool and get its output.
 --! @return Command output. See os_utils.execWithOutput for details.
 function os_utils.ntopctlCmd(service_name, ...)
-   return os_utils.execWithOutput(service_name, ...)
+   return os_utils.execWithOutput(ntopctl_cmd(service_name, ...))
 end
 
 -- ########################################################
@@ -120,7 +120,7 @@ end
 
 -- ########################################################
 
---! @brief Checks the service status.
+--! @brief Check the service status.
 --! @return active|inactive|error
 function os_utils.serviceStatus(service_name, ...)
    local rv = os_utils.execWithOutput(ntopctl_cmd(service_name, "is-active", ...))
@@ -134,6 +134,14 @@ function os_utils.serviceStatus(service_name, ...)
    end
 end
  
+-- ########################################################
+
+--! @brief Check if the service is active
+--! @return true if service is active, false otehrwise
+function os_utils.isActive(service_name, ...)
+  return(os_utils.serviceStatus(service_name, ...) == "active")
+end
+
 -- ########################################################
 
 function os_utils.isEnabled(service_name, ...)
