@@ -407,7 +407,7 @@ print [[/lua/if_stats.lua\"><i class=\"fa fa-warning\" style=\"color: #B94A48;\"
 	      
 	      msg += "&nbsp;<a href=\"]] print(ntop.getHttpPrefix()) print[[/lua/admin/remote_assistance.lua\"><span class=\"label label-" + status_label + "\" title=\"]]
 	      print(i18n("remote_assistance.remote_assistance")) print[[\">";
-	      msg += "<i class=\"fa fa-terminal fa-lg\"></i></span></a>";
+	      msg += "<i class=\"fa fa-commenting fa-lg\"></i></span></a>";
 	    }
 
 	    if(typeof rsp.traffic_recording !== "undefined") {

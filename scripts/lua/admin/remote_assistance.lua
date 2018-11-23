@@ -11,20 +11,29 @@ if((not isAdministrator()) or (not remote_assistance.isAvailable())) then
   return
 end
 
+local info = ntop.getInfo()
+
 if not table.empty(_POST) then
-  local enabled = (_POST["toggle_remote_assistance"] == "1")
-  ntop.setPref("ntopng.prefs.remote_assistance.enabled", ternary(enabled, "1", "0"))
+  local enabled = (_POST["toggle_remote_assistance"] == "1") and (_POST["accept_tos"] == "1")
 
   if enabled then
-    local create_user = (_POST["create_temporary_user"] == "1")
-    local community = _POST["n2n_community"]
-    local key = _POST["n2n_key"]
+    local admin_access = _POST["allow_admin_access"]
+    local community = _POST["assistance_key"]
+    local key = community
+
+    if admin_access == "1" then
+      remote_assistance.enableTempAdminAccess(key)
+    else
+      remote_assistance.disableTempAdminAccess()
+    end
 
     ntop.setPref("ntopng.prefs.remote_assistance.community", community)
     ntop.setPref("ntopng.prefs.remote_assistance.key", key)
+    ntop.setPref("ntopng.prefs.remote_assistance.admin_access", admin_access or "0")
     remote_assistance.createConfig(community, key)
     remote_assistance.enableAndStart()
   else
+    remote_assistance.disableTempAdminAccess()
     remote_assistance.disableAndStop()
   end
 end
@@ -34,13 +43,19 @@ ntop.dumpFile(dirs.installdir .. "/httpdocs/inc/header.inc")
 dofile(dirs.installdir .. "/scripts/lua/inc/menu.lua")
 
 print("<hr>")
-print("<h2>") print(i18n("remote_assistance.remote_assistance")) print("</h2>")
+print("<h2>") print(i18n("remote_assistance.product_remote_assistance", {product=info.product})) print("</h2>")
 print("<br>")
 
 local assistace_checked = ""
+local admin_checked = ""
+local assist_enabled = remote_assistance.isEnabled()
 
-if remote_assistance.isEnabled() then
+if assist_enabled then
   assistace_checked = "checked"
+end
+
+if ntop.getPref("ntopng.prefs.remote_assistance.admin_access") == "1" then
+  admin_checked = "checked"
 end
 
 print [[
@@ -50,25 +65,37 @@ print [[
     <div id="assistance-config" class="tab-pane in active">
       <table class="table table-striped table-bordered">
         <tr>
-          <th width=20%>]] print(i18n("remote_assistance.enable_remote_assistance")) print [[</th>
+          <th width=22%>]] print(i18n("remote_assistance.enable_remote_assistance")) print [[</th>
           <td>
-            <input id="toggle_remote_assistance" name="toggle_remote_assistance" type="checkbox" value="1" ]] print(assistace_checked) print [[/>
+            <div class="form-group">
+              <input id="toggle_remote_assistance" name="toggle_remote_assistance" type="checkbox" value="1" ]] print(assistace_checked) print [[/>
+            </div>
+            <div style="margin-left: 0.5em; display:inline">]] print(remote_assistance.statusLabel()) print[[</div>
           </td>
         </tr>
         <tr>
-          <th>]] print(i18n("status")) print[[</th>
-          <td>]] print(remote_assistance.statusLabel()) print[[</td>
+          <th>]] print(i18n("key")) print[[</th>
+          <td><input id="assistance_key" class="form-control" data-ays-ignore="true" name="assistance_key" value="]] print(ntop.getPref("ntopng.prefs.remote_assistance.key")) print[[" readonly /><br>
+          <small>]] print(i18n("remote_assistance.key_descr")) print[[</small>
+          </td>
         </tr>
         <tr>
-          <th>]] print(i18n("key")) print[[</th>
-          <td><input id="n2n-key" class="form-control" name="n2n_key" value="]] print(ntop.getPref("ntopng.prefs.remote_assistance.key")) print[[" readonly /><br>
-          <small>]] print(i18n("remote_assistance.key_descr")) print[[</small>
+          <th>]] print(i18n("remote_assistance.admin_access")) print[[</th>
+          <td><input name="allow_admin_access" type="checkbox" value="1" ]] print(admin_checked) print [[/><br>
+          <small>]] print(i18n("remote_assistance.admin_access_descr", {product = info.product})) print[[</small>
           </td>
         </tr>
       </table>
     </div>
 
     <button class="btn btn-primary" style="float:right; margin-right:1em;" disabled="disabled" type="submit">]] print(i18n("save_settings")) print[[</button>
+
+    <div id="tos-accept" style="]] print(ternary(assist_enabled, "", "display:none")) print[[">
+      <div class="form-group">
+        <input type="checkbox" name="accept_tos" data-ays-ignore="true" value="1" ]] print(ternary(assist_enabled, "required checked", "")) print[[ />
+      </div>
+      <span>]] print(i18n("remote_assistance.tos_notice")) print[[</span>
+    </div>
   </form>
   <br>
 
@@ -86,17 +113,26 @@ print[[
   <script>
     aysHandleForm("#remote_assistance_form");
 
+    function genNumericId() {
+      // 10 digits
+      return Math.random().toString().substring(2,12);
+    }
+
     function generate_credentials() {
       var today = Math.floor($.now() / 1000 / 86400); // days since first epoch
 
-      $("#n2n-key").val(genRandomString(10, "123456789"));                 // 10 digits
+      $("#assistance_key").val(genNumericId());
     }
 
     $("#toggle_remote_assistance").change(function() {
       var is_enabled = $("#toggle_remote_assistance").is(":checked");
 
-      if(is_enabled)
+      if(is_enabled) {
         generate_credentials();
+        $("#tos-accept").show().find("input").attr("required", "required");
+      } else {
+        $("#tos-accept").hide().find("input").removeAttr("required");
+      }
     });
   </script>
 ]]

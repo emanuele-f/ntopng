@@ -7,6 +7,7 @@ package.path = dirs.installdir .. "/scripts/lua/modules/?.lua;" .. package.path
 
 require "lua_utils"
 local lists_utils = require "lists_utils"
+local remote_assistance = require "remote_assistance"
 
 if(ntop.isPro()) then
    package.path = dirs.installdir .. "/pro/scripts/callbacks/system/?.lua;" .. package.path
@@ -14,6 +15,8 @@ if(ntop.isPro()) then
 end
 
 -- ########################################################
+
+remote_assistance.checkExpiration()
 
 -- Delete JSON files older than a 30 days
 -- TODO: make 30 configurable

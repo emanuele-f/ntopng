@@ -12,6 +12,8 @@ local DEVICE_IP = "192.168.166.1"
 local SUPERNODE_ADDRESS = "dns.ntop.org:7777"
 local CONF_DIR = dirs.workingdir.."/n2n"
 local CONF_FILE = CONF_DIR .. "/edge.conf"
+local TEMP_ADMIN_PASSWORD_KEY = "ntopng.prefs.temp_admin_password"
+local REMOTE_ASSISTANCE_EXPIRATION = 86400 --[[ keep active for max 1 day ]]
 local remote_assistance = {}
 
 -- ########################################################
@@ -19,6 +21,18 @@ local remote_assistance = {}
 function remote_assistance.isAvailable()
   return true
   --return isAdministrator() and os_utils.hasService(SERVICE_NAME)
+end
+
+-- ########################################################
+
+function remote_assistance.enableTempAdminAccess(key)
+  ntop.setPref(TEMP_ADMIN_PASSWORD_KEY, key, REMOTE_ASSISTANCE_EXPIRATION) 
+end
+
+-- ########################################################
+
+function remote_assistance.disableTempAdminAccess()
+  ntop.delCache(TEMP_ADMIN_PASSWORD_KEY)
 end
 
 -- ########################################################
@@ -69,6 +83,8 @@ end
 -- ########################################################
 
 function remote_assistance.enableAndStart()
+  ntop.setPref("ntopng.prefs.remote_assistance.enabled", "1")
+  ntop.setPref("ntopng.prefs.remote_assistance.expires_on", tostring(os.time() + REMOTE_ASSISTANCE_EXPIRATION))
   os_utils.enableService(SERVICE_NAME)
   return os_utils.restartService(SERVICE_NAME)
 end
@@ -76,8 +92,22 @@ end
 -- ########################################################
 
 function remote_assistance.disableAndStop()
+  ntop.delCache("ntopng.prefs.remote_assistance.enabled")
   os_utils.disableService(SERVICE_NAME)
   return os_utils.stopService(SERVICE_NAME)
+end
+
+-- ########################################################
+
+function remote_assistance.checkExpiration()
+  if remote_assistance.isEnabled() then
+    local expires_on = tonumber(ntop.getPref("ntopng.prefs.remote_assistance.expires_on"))
+
+    if((expires_on == nil) or (os.time() >= expires_on)) then
+      remote_assistance.disableTempAdminAccess()
+      remote_assistance.disableAndStop()
+    end
+  end
 end
 
 -- ########################################################

@@ -2484,12 +2484,16 @@ local lang = {
     ["type"] = "Type",
   },
   ["remote_assistance"] = {
+    ["admin_access"] = "Enable Admin Access",
+    ["admin_access_descr"] = "Allow the support team access as admin user to the %{product} gui.",
     ["ask_admin"] = "Ask the network administrator permission before doing this.",
     ["enable_remote_assistance"] = "Enable Remote Assistance",
     ["key_descr"] = "This is the key to provide to the support team for assistance.",
     ["note_sensitive"] = "The information above is sensitive. Only provide it to the ntopng support team.",
+    ["product_remote_assistance"] = "%{product} Remote Assistance",
     ["remember_disable"] = "Remember to disable the remote assistance when not needed.",
     ["remote_assistance"] = "Remote Assistance",
+    ["tos_notice"] = "I want to provide remote access to my host and my network security policies allow this. ntop is not responsible for any damage, security violation or vulnerability caused by enabling remote assistance.",
     ["will_create_virtual_network"] = "When enabled, the remote assistance will create an encrypted virtual network to connect remotely to your device.",
   },
   ["report"] = {

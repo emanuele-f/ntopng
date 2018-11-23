@@ -1314,9 +1314,9 @@ local known_parameters = {
    ["initial_point"]           = validateBool,
    ["extract_now"]             = validateBool,
    ["custom_hosts"]            = validateListOfTypeInline(validateSingleWord),
-   ["create_temporary_user"]   = validateBool,
-   ["n2n_community"]           = validateUnquoted,
-   ["n2n_key"]                 = validateUnquoted,
+   ["assistance_key"]          = validateUnquoted,
+   ["allow_admin_access"]      = validateBool,
+   ["accept_tos"]              = validateBool,
 
    -- json POST DATA
    ["payload"]                 = { jsonCleanup, validateJSON },
