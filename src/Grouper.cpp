@@ -165,14 +165,14 @@ int8_t Grouper::incStats(Host *h) {
     return -1;
 
   stats.num_hosts++,
-    stats.bytes_sent += h->getNumBytesSent(),
-    stats.bytes_rcvd += h->getNumBytesRcvd(),
+    stats.bytes_sent += h->getStats()->getNumBytesSent(),
+    stats.bytes_rcvd += h->getStats()->getNumBytesRcvd(),
     stats.num_flows += h->getNumActiveFlows(),
-    stats.num_dropped_flows += h->getNumDroppedFlows(),
+    stats.num_dropped_flows += h->getStats()->getNumDroppedFlows(),
     stats.num_alerts += h->getNumAlerts(),
-    stats.throughput_bps += h->getBytesThpt(),
-    stats.throughput_pps += h->getPacketsThpt(),
-    stats.throughput_trend_bps_diff += h->getThptTrendDiff();
+    stats.throughput_bps += h->getStats()->getBytesThpt(),
+    stats.throughput_pps += h->getStats()->getPacketsThpt(),
+    stats.throughput_trend_bps_diff += h->getStats()->getThptTrendDiff();
 
   if(stats.first_seen == 0 || h->get_first_seen() < stats.first_seen)
     stats.first_seen = h->get_first_seen();

@@ -903,7 +903,7 @@ void Flow::setDropVerdict() {
 void Flow::incFlowDroppedCounters() {
   if(!flow_dropped_counts_increased) {
     if(cli_host) {
-      cli_host->incNumDroppedFlows();
+      cli_host->getStats()->incNumDroppedFlows();
       if(cli_host->getMac()) cli_host->getMac()->incNumDroppedFlows();
     }
 
@@ -1130,7 +1130,8 @@ void Flow::update_hosts_stats(struct timeval *tv, bool dump_alert) {
 	 && isThreeWayHandshakeOK()
 	 && (ndpi_is_proto(ndpiDetectedProtocol, NDPI_PROTOCOL_HTTP)
 	     || ndpi_is_proto(ndpiDetectedProtocol, NDPI_PROTOCOL_HTTP_PROXY))) {
-	srv_host->updateHTTPHostRequest(host_server_name,
+	if(srv_host->getHTTPstats())
+	  srv_host->getHTTPstats()->updateHTTPHostRequest(host_server_name,
 					diff_num_http_requests,
 					diff_sent_bytes, diff_rcvd_bytes);
 	diff_num_http_requests = 0; /*
@@ -1350,11 +1351,11 @@ void Flow::update_pools_stats(const struct timeval *tv,
 
       /* Per host quota-enforcement stats */
       if(hp->enforceQuotasPerPoolMember(cli_host_pool_id)) {
-	cli_host->incQuotaEnforcementStats(tv->tv_sec, ndpiDetectedProtocol.master_protocol,
+	cli_host->getStats()->incQuotaEnforcementStats(tv->tv_sec, ndpiDetectedProtocol.master_protocol,
 					   diff_sent_packets, diff_sent_bytes, diff_rcvd_packets, diff_rcvd_bytes);
-	cli_host->incQuotaEnforcementStats(tv->tv_sec, ndpiDetectedProtocol.app_protocol,
+	cli_host->getStats()->incQuotaEnforcementStats(tv->tv_sec, ndpiDetectedProtocol.app_protocol,
 					   diff_sent_packets, diff_sent_bytes, diff_rcvd_packets, diff_rcvd_bytes);
-	cli_host->incQuotaEnforcementCategoryStats(tv->tv_sec, category_id, diff_sent_bytes, diff_rcvd_bytes);
+	cli_host->getStats()->incQuotaEnforcementCategoryStats(tv->tv_sec, category_id, diff_sent_bytes, diff_rcvd_bytes);
       }
     }
 
@@ -1375,11 +1376,11 @@ void Flow::update_pools_stats(const struct timeval *tv,
 
       /* When quotas have to be enforced per pool member, stats must be increased even if cli and srv are on the same pool */
       if(hp->enforceQuotasPerPoolMember(srv_host_pool_id)) {
-	srv_host->incQuotaEnforcementStats(tv->tv_sec, ndpiDetectedProtocol.master_protocol,
+	srv_host->getStats()->incQuotaEnforcementStats(tv->tv_sec, ndpiDetectedProtocol.master_protocol,
 			 diff_rcvd_packets, diff_rcvd_bytes, diff_sent_packets, diff_sent_bytes);
-	srv_host->incQuotaEnforcementStats(tv->tv_sec, ndpiDetectedProtocol.app_protocol,
+	srv_host->getStats()->incQuotaEnforcementStats(tv->tv_sec, ndpiDetectedProtocol.app_protocol,
 			 diff_rcvd_packets, diff_rcvd_bytes, diff_sent_packets, diff_sent_bytes);
-	srv_host->incQuotaEnforcementCategoryStats(tv->tv_sec, category_id, diff_rcvd_bytes, diff_sent_bytes);
+	srv_host->getStats()->incQuotaEnforcementCategoryStats(tv->tv_sec, category_id, diff_rcvd_bytes, diff_sent_bytes);
       }
     }
   }
@@ -2291,10 +2292,10 @@ void Flow::incStats(bool cli2srv_direction, u_int pkt_len,
 
   if(cli2srv_direction) {
     cli2srv_packets++, cli2srv_bytes += pkt_len, cli2srv_goodput_bytes += payload_len;
-      cli_host->get_sent_stats()->incStats(pkt_len), srv_host->get_recv_stats()->incStats(pkt_len);
+      cli_host->getStats()->incSentStats(pkt_len), srv_host->incRecvStats(pkt_len);
   } else {
     srv2cli_packets++, srv2cli_bytes += pkt_len, srv2cli_goodput_bytes += payload_len;
-    cli_host->get_recv_stats()->incStats(pkt_len), srv_host->get_sent_stats()->incStats(pkt_len);
+    cli_host->incRecvStats(pkt_len), srv_host->incSentStats(pkt_len);
   }
 
   if((applLatencyMsec == 0) && (payload_len > 0)) {

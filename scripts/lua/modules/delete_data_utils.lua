@@ -116,7 +116,7 @@ local function _delete_host(interface_id, host_info)
    local old_ifname = interface.getStats().name
    interface.select(getInterfaceName(interface_id))
 
-   interface.resetHostData(hostinfo2hostkey(host_info))
+   interface.resetHostStats(hostinfo2hostkey(host_info))
    local h_ts = delete_host_timeseries_data(interface_id, host_info)
    local h_rk = delete_host_redis_keys(interface_id, host_info)
    local h_db = delete_host_mysql_flows(interface_id, host_info)

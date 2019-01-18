@@ -312,6 +312,8 @@ using namespace std;
 #include "AutonomousSystem.h"
 #include "Country.h"
 #include "Mac.h"
+#include "HostStats.h"
+#include "LocalHostStats.h"
 #include "Host.h"
 #include "LocalHost.h"
 #include "RemoteHost.h"

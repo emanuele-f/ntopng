@@ -5353,7 +5353,7 @@ static int ntop_interface_reset_counters(lua_State* vm) {
 
 /* ****************************************** */
 
-static int ntop_interface_reset_host_data(lua_State* vm) {
+static int ntop_interface_reset_host_stats(lua_State* vm) {
   NetworkInterface *ntop_interface = getCurrentInterface(vm);
   char buf[64], *host_ip;
   Host *host;
@@ -5371,9 +5371,8 @@ static int ntop_interface_reset_host_data(lua_State* vm) {
 
   host = ntop_interface->findHostByIP(get_allowed_nets(vm), host_ip, vlan_id);
 
-  // TODO
-  //if(host)
-    //host->reset_data();
+  if(host)
+    host->requestStatsReset();
 
   lua_pushboolean(vm, (host != NULL));
   return(CONST_LUA_OK);
@@ -8012,7 +8011,7 @@ static const luaL_Reg ntop_interface_reg[] = {
   { "getStats",                 ntop_get_interface_stats },
   { "getInterfaceTimeseries",   ntop_get_interface_timeseries },
   { "resetCounters",            ntop_interface_reset_counters },
-  { "resetHostData",            ntop_interface_reset_host_data },
+  { "resetHostStats",           ntop_interface_reset_host_stats },
 
   { "getnDPIStats",             ntop_get_ndpi_interface_stats },
   { "getnDPIProtoName",         ntop_get_ndpi_protocol_name },

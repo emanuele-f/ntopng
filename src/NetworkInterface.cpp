@@ -3060,7 +3060,7 @@ static bool host_reset_quotas(GenericHashEntry *host, void *user_data, bool *mat
 
   if((pool_filter == (u_int16_t)-1) || (h->get_host_pool() == pool_filter)) {
     *matched = true;
-    h->resetQuotaStats();
+    h->getStats()->resetQuotaStats();
     h->resetBlockedTrafficStatus();
   }
 
@@ -3349,7 +3349,7 @@ bool NetworkInterface::checkPointHostCounters(lua_State* vm, u_int8_t checkpoint
   bool ret = false;
 
   if(host_ip && (h = getHost(host_ip, vlan_id)))
-    ret = h->checkpoint(vm, this, checkpoint_id, details_level);
+    ret = h->getStats()->checkpoint(vm, this, checkpoint_id, details_level);
 
   return ret;
 }
@@ -3745,7 +3745,7 @@ static bool host_search_walker(GenericHashEntry *he, void *user_data, bool *matc
     break;
 
   case column_thpt:
-    r->elems[r->actNumEntries++].numericValue = h->getBytesThpt();
+    r->elems[r->actNumEntries++].numericValue = h->getStats()->getBytesThpt();
     break;
 
   case column_num_flows:
@@ -3753,11 +3753,11 @@ static bool host_search_walker(GenericHashEntry *he, void *user_data, bool *matc
     break;
 
   case column_num_dropped_flows:
-    r->elems[r->actNumEntries++].numericValue = h->getNumDroppedFlows();
+    r->elems[r->actNumEntries++].numericValue = h->getStats()->getNumDroppedFlows();
     break;
 
   case column_traffic:
-    r->elems[r->actNumEntries++].numericValue = h->getNumBytes();
+    r->elems[r->actNumEntries++].numericValue = h->getStats()->getNumBytes();
     break;
 
   case column_local_network_id:
@@ -3779,8 +3779,8 @@ static bool host_search_walker(GenericHashEntry *he, void *user_data, bool *matc
     break;
 
     /* Criteria */
-  case column_uploaders:      r->elems[r->actNumEntries++].numericValue = h->getNumBytesSent(); break;
-  case column_downloaders:    r->elems[r->actNumEntries++].numericValue = h->getNumBytesRcvd(); break;
+  case column_uploaders:      r->elems[r->actNumEntries++].numericValue = h->getStats()->getNumBytesSent(); break;
+  case column_downloaders:    r->elems[r->actNumEntries++].numericValue = h->getStats()->getNumBytesRcvd(); break;
   case column_unknowers:      r->elems[r->actNumEntries++].numericValue = h->get_ndpi_stats()->getProtoBytes(NDPI_PROTOCOL_UNKNOWN); break;
   case column_incomingflows:  r->elems[r->actNumEntries++].numericValue = h->getNumIncomingFlows(); break;
   case column_outgoingflows:  r->elems[r->actNumEntries++].numericValue = h->getNumOutgoingFlows(); break;
