@@ -258,11 +258,9 @@ class Host : public GenericHashEntry {
   void setNumAlerts(u_int32_t num)                       { num_alerts_detected = num; };
 
   inline void setSSDPLocation(char *url) {
-     if(url) {
-	if(ssdpLocation_shadow) free(ssdpLocation_shadow);
-	ssdpLocation_shadow = ssdpLocation;
-	ssdpLocation = url ? strdup(url) : NULL;
-     }
+    if(ssdpLocation_shadow) free(ssdpLocation_shadow);
+    ssdpLocation_shadow = ssdpLocation;
+    ssdpLocation = url ? strdup(url) : NULL;
   }
 };
 

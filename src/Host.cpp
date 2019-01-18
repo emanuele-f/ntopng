@@ -194,7 +194,6 @@ void Host::initialize(Mac *_mac, u_int16_t _vlanId, bool init_all) {
       country->incUses();
   }
 
-  updateHostPool(true /* inline with packet processing */, true /* first inc */);
   reloadHideFromTop();
 }
 

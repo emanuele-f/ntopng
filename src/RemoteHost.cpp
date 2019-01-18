@@ -51,6 +51,7 @@ void RemoteHost::initialize() {
   char rsp[256];
 
   stats = allocateStats();
+  updateHostPool(true /* inline with packet processing */, true /* first inc */);
 
   if(ntop->getPrefs()->is_dns_resolution_enabled_for_all_hosts()) {
     if(ntop->getRedis()->getAddress(host, rsp, sizeof(rsp), true) == 0)

@@ -54,6 +54,7 @@ void LocalHost::initialize() {
   char buf[64];
 
   stats = allocateStats();
+  updateHostPool(true /* inline with packet processing */, true /* first inc */);
 
   local_network_id = -1;
   dhcpUpdated = false;
