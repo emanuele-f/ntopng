@@ -1116,6 +1116,7 @@ void Host::updateStats(struct timeval *tv) {
     HostStats *new_stats = allocateStats();
     stats_shadow = stats;
     stats = new_stats;
+    requestStatsReset(false);
   }
 
   stats->updateStats(tv);
