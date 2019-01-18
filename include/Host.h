@@ -105,7 +105,6 @@ class Host : public GenericHashEntry {
   };
 
   virtual HostStats* allocateStats()                { return(new HostStats(this)); };
-  inline HostStats* getStats()                      { return(stats); };
   void updateStats(struct timeval *tv);
   void incLowGoodputFlows(bool asClient);
   void decLowGoodputFlows(bool asClient);
@@ -143,7 +142,31 @@ class Host : public GenericHashEntry {
   inline bool hasBlockedTraffic() { return has_blocking_quota || has_blocking_shaper; };
   inline void resetBlockedTrafficStatus(){ has_blocking_quota = has_blocking_shaper = false; };
   void luaUsedQuotas(lua_State* vm);
+
+  inline void incQuotaEnforcementStats(u_int32_t when, u_int16_t ndpi_proto,
+				       u_int64_t sent_packets, u_int64_t sent_bytes,
+				       u_int64_t rcvd_packets, u_int64_t rcvd_bytes) {
+    stats->incQuotaEnforcementStats(when, ndpi_proto, sent_packets, sent_bytes, rcvd_packets, rcvd_bytes);
+  }
+
+  inline void incQuotaEnforcementCategoryStats(u_int32_t when,
+				       ndpi_protocol_category_t category_id,
+				       u_int64_t sent_bytes, u_int64_t rcvd_bytes) {
+    stats->incQuotaEnforcementCategoryStats(when, category_id, sent_bytes, rcvd_bytes);
+  }
 #endif
+
+  inline u_int64_t getNumBytesSent()           { return(stats->getNumBytesSent());   }
+  inline u_int64_t getNumBytesRcvd()           { return(stats->getNumBytesRcvd());   }
+  inline u_int64_t getNumDroppedFlows()        { return(stats->getNumDroppedFlows());}
+  inline u_int64_t getNumBytes()               { return(stats->getNumBytes());}
+  inline bool checkpoint(lua_State* vm, NetworkInterface *iface,
+					      u_int8_t checkpoint_id,
+					      DetailsLevel details_level)    { return(stats->checkpoint(vm, iface, checkpoint_id, details_level)); }
+  inline float getThptTrendDiff()              { return(stats->getThptTrendDiff());  }
+  inline float getBytesThpt()                  { return(stats->getBytesThpt());      }
+  inline float getPacketsThpt()                { return(stats->getPacketsThpt());    }
+  inline void incNumDroppedFlows()             { incNumDroppedFlows(); }
 
   inline u_int32_t get_asn()                   { return(asn);              }
   inline char*     get_asname()                { return(asname);           }
