@@ -27,6 +27,7 @@ HostStats::HostStats(Host *_host) {
   host = _host;
   iface = host->getInterface();
 
+  /* NOTE: deleted by ~GenericTrafficElement */
   ndpiStats = new nDPIStats();
   //printf("SIZE: %lu, %lu, %lu\n", sizeof(nDPIStats), MAX_NDPI_PROTOS, NDPI_PROTOCOL_NUM_CATEGORIES);
 
