@@ -78,6 +78,9 @@ Host::~Host() {
   if(flow_flood_attacker_alert) delete flow_flood_attacker_alert;
   if(flow_flood_victim_alert)   delete flow_flood_victim_alert;
 
+  if(stats)              delete stats;
+  if(stats_shadow)       delete stats_shadow;
+
   /* Pool counters are updated both in and outside the datapath.
      So decPoolNumHosts must stay in the destructor to preserve counters
      consistency (no thread outside the datapath will change the last pool id) */
@@ -128,7 +131,7 @@ void Host::set_host_label(char *label_name, bool ignoreIfPresent) {
 /* *************************************** */
 
 void Host::initialize(Mac *_mac, u_int16_t _vlanId, bool init_all) {
-  stats = allocateStats();
+  stats = NULL; /* it will be instantiated by specialized classes */
   stats_shadow = NULL;
 
   // readStats(); - Commented as if put here it's too early and the key is not yet set
@@ -498,6 +501,8 @@ void Host::lua(lua_State* vm, AddressTree *ptree,
   lua_push_str_table_entry(vm, "asname", asname ? asname : (char*)"");
   lua_push_str_table_entry(vm, "os", get_os());
 
+  stats->lua(vm, mask_host, host_details, verbose);
+
   if(mac && mac->isDhcpHost()) lua_push_bool_table_entry(vm, "dhcpHost", true);
   lua_push_uint64_table_entry(vm, "active_flows.as_client", num_active_flows_as_client);
   lua_push_uint64_table_entry(vm, "active_flows.as_server", num_active_flows_as_server);
@@ -562,8 +567,6 @@ void Host::lua(lua_State* vm, AddressTree *ptree,
 
   if(!returnHost)
     host_id = get_hostkey(buf_id, sizeof(buf_id));
-
-  ((GenericTrafficElement*)this)->lua(vm, host_details);
 
   if(asListElement) {
     lua_pushstring(vm, host_id);

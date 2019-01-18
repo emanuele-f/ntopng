@@ -51,6 +51,8 @@ void LocalHost::initialize() {
   char key[64], redis_key[128], *k;
   char buf[64];
 
+  stats = allocateStats();
+
   local_network_id = -1;
   dhcpUpdated = false;
   drop_all_host_traffic = false;
@@ -238,8 +240,6 @@ void LocalHost::lua(lua_State* vm, AddressTree *ptree,
 	    host_details, verbose, returnHost,
 	    false /* asListElement possibly handled later */);
 
-  stats->lua(vm, mask_host, host_details, verbose);
-
   lua_push_int32_table_entry(vm, "local_network_id", local_network_id);
 
   local_net = ntop->getLocalNetworkName(local_network_id);
@@ -303,7 +303,7 @@ void LocalHost::setOS(char *_os) {
 void LocalHost::tsLua(lua_State* vm) {
   char buf_id[64], *host_id;
 
-  ((LocalHostStats*)stats)->tsLua(vm);
+  stats->tsLua(vm);
 
   host_id = get_hostkey(buf_id, sizeof(buf_id));
   lua_pushstring(vm, host_id);

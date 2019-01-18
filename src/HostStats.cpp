@@ -139,6 +139,8 @@ void HostStats::lua(lua_State* vm, bool mask_host, bool host_details, bool verbo
     lua_push_uint64_table_entry(vm, "other_ip.packets.rcvd",  other_ip_rcvd.getNumPkts());
     lua_push_uint64_table_entry(vm, "other_ip.bytes.rcvd", other_ip_rcvd.getNumBytes());
   }
+
+  ((GenericTrafficElement*)this)->lua(vm, host_details);
 }
 
 /* *************************************** */
