@@ -202,7 +202,7 @@ class Host : public GenericHashEntry {
   inline void setInfo(char *s) {
     if(info_shadow) free(info_shadow);
     info_shadow = info;
-    info = strdup(s);
+    info = s ? strdup(s) : NULL;
   }
   inline char* getInfo(char *buf, uint buf_len) { return get_visual_name(buf, buf_len, true); }
   virtual void incrVisitedWebSite(char *hostname) {};
@@ -237,7 +237,7 @@ class Host : public GenericHashEntry {
      if(url) {
 	if(ssdpLocation_shadow) free(ssdpLocation_shadow);
 	ssdpLocation_shadow = ssdpLocation;
-	ssdpLocation = strdup(url);
+	ssdpLocation = url ? strdup(url) : NULL;
      }
   }
 };

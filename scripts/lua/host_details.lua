@@ -504,6 +504,9 @@ if((page == "overview") or (page == nil)) then
       if(host["name"] == nil) then
 	 host["name"] = getResolvedAddress(hostkey2hostinfo(host["ip"]))
       end
+      if(isEmptyString(host["name"])) then
+         host["name"] = host["ip"]
+      end
       
       print("<tr><th>"..i18n("name").."</th>")
 

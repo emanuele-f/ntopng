@@ -1142,7 +1142,8 @@ void Host::checkDataReset() {
 
 void Host::deleteHostData() {
   setName((char*)"");
-  setInfo((char*)"");
-  setSSDPLocation((char*)"");
+  setInfo(NULL);
+  setSSDPLocation(NULL);
   host_label_set = false;
+  first_seen = last_seen = iface->getTimeLastPktRcvd();
 }

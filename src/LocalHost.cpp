@@ -286,7 +286,7 @@ void LocalHost::setOS(char *_os, bool ignoreIfPresent) {
   if((os == NULL) || ignoreIfPresent) {
     if(os_shadow) free(os_shadow);
     os_shadow = os;
-    os = strdup(_os);
+    os = _os ? strdup(_os) : NULL;
   }
 
   if (!os) return;
@@ -321,7 +321,7 @@ void LocalHost::tsLua(lua_State* vm) {
 void LocalHost::deleteHostData() {
   Host::deleteHostData();
 
-  setOS((char *)"", false /* overwrite */);
+  setOS(NULL, false /* overwrite */);
   dhcpUpdated = false;
   updateHostTrafficPolicy(NULL);
 }
