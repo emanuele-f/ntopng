@@ -1120,7 +1120,9 @@ void Host::updateStats(struct timeval *tv) {
     stats = new_stats;
 
     /* Reset internal state */
+#ifdef NTOPNG_PRO
     has_blocking_quota = false;
+#endif
 
     stats_reset_requested = false;
   }

@@ -138,6 +138,7 @@ class Host : public GenericHashEntry {
 #ifdef NTOPNG_PRO
   inline TrafficShaper *get_ingress_shaper(ndpi_protocol ndpiProtocol) { return(get_shaper(ndpiProtocol, true)); }
   inline TrafficShaper *get_egress_shaper(ndpi_protocol ndpiProtocol)  { return(get_shaper(ndpiProtocol, false)); }
+  inline void resetQuotaStats()                                        { stats->resetQuotaStats(); }
   bool checkQuota(ndpi_protocol ndpiProtocol, L7PolicySource_t *quota_source, const struct tm *now);
   inline bool hasBlockedTraffic() { return has_blocking_quota || has_blocking_shaper; };
   inline void resetBlockedTrafficStatus(){ has_blocking_quota = has_blocking_shaper = false; };
@@ -166,7 +167,7 @@ class Host : public GenericHashEntry {
   inline float getThptTrendDiff()              { return(stats->getThptTrendDiff());  }
   inline float getBytesThpt()                  { return(stats->getBytesThpt());      }
   inline float getPacketsThpt()                { return(stats->getPacketsThpt());    }
-  inline void incNumDroppedFlows()             { incNumDroppedFlows(); }
+  inline void incNumDroppedFlows()             { stats->incNumDroppedFlows();        }
 
   inline u_int32_t get_asn()                   { return(asn);              }
   inline char*     get_asname()                { return(asname);           }

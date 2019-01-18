@@ -276,6 +276,8 @@ other_ip_sent.incStats(sent_packets, sent_bytes);
   }
 }
 
+#ifdef NTOPNG_PRO
+
 /* *************************************** */
 
 void HostStats::allocateQuotaEnforcementStats() {
@@ -318,3 +320,5 @@ void HostStats::deleteQuotaEnforcementStats() {
 #endif
     }
 }
+
+#endif
