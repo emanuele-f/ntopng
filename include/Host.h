@@ -28,8 +28,8 @@ class Host : public GenericHashEntry {
  protected:
   IpAddress ip;
   Mac *mac;
-  char *asname, *info;
-  bool stats_reset_requested, host_label_set;
+  char *asname, *info, *info_shadow;
+  bool stats_reset_requested, data_delete_requested, host_label_set;
   u_int16_t vlan_id, host_pool_id;
   HostStats *stats, *stats_shadow;
   char *ssdpLocation, *ssdpLocation_shadow;
@@ -86,6 +86,7 @@ class Host : public GenericHashEntry {
     iface->decNumHosts(isLocalHost());
     GenericHashEntry::set_to_purge();
   };
+  virtual void deleteHostData();
 
   inline bool isChildSafe() {
 #ifdef NTOPNG_PRO
@@ -124,7 +125,7 @@ class Host : public GenericHashEntry {
   inline void set_ipv6(struct ndpi_in6_addr *_ipv6) { ip.set(_ipv6);                 };
   inline u_int32_t key()                            { return(ip.key());              };
   char* getJSON();
-  virtual void setOS(char *_os) {};
+  virtual void setOS(char *_os, bool ignoreIfPresent=true) {};
   inline IpAddress* get_ip()                   { return(&ip);              }
   void set_mac(Mac  *m);
   void set_mac(char *m);
@@ -198,7 +199,11 @@ class Host : public GenericHashEntry {
   bool incFlowAlertHits(time_t when);
   virtual bool setRemoteToRemoteAlerts() { return(false); };
   inline void checkPointHostTalker(lua_State *vm, bool saveCheckpoint) { stats->checkPointHostTalker(vm, saveCheckpoint); }
-  inline void setInfo(char *s) { if(info) free(info); info = strdup(s); }
+  inline void setInfo(char *s) {
+    if(info_shadow) free(info_shadow);
+    info_shadow = info;
+    info = strdup(s);
+  }
   inline char* getInfo(char *buf, uint buf_len) { return get_visual_name(buf, buf_len, true); }
   virtual void incrVisitedWebSite(char *hostname) {};
   virtual u_int32_t getActiveHTTPHosts()  { return(0); };
@@ -217,8 +222,9 @@ class Host : public GenericHashEntry {
   virtual void tsLua(lua_State* vm) { lua_pushnil(vm); };
   DeviceProtoStatus getDeviceAllowedProtocolStatus(ndpi_protocol proto, bool as_client);
 
-  inline void requestStatsReset(bool reset=true)  { stats_reset_requested = reset; };
-  inline bool resetStatsRequested()               { return(stats_reset_requested); };
+  inline void requestStatsReset()                        { stats_reset_requested = true; };
+  inline void requestDataReset()                         { data_delete_requested = true; requestStatsReset(); };
+  void checkDataReset();
   bool hasAnomalies();
   void luaAnomalies(lua_State* vm);
   void loadAlertsCounter();

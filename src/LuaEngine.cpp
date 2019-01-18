@@ -5380,6 +5380,33 @@ static int ntop_interface_reset_host_stats(lua_State* vm) {
 
 /* ****************************************** */
 
+static int ntop_interface_delete_host_data(lua_State* vm) {
+  NetworkInterface *ntop_interface = getCurrentInterface(vm);
+  char buf[64], *host_ip;
+  Host *host;
+  u_int16_t vlan_id;
+
+  ntop->getTrace()->traceEvent(TRACE_DEBUG, "%s() called", __FUNCTION__);
+
+  if(!ntop_interface)
+    return(CONST_LUA_ERROR);
+
+  if(ntop_lua_check(vm, __FUNCTION__, 1, LUA_TSTRING) != CONST_LUA_OK) return(CONST_LUA_PARAM_ERROR);
+  get_host_vlan_info((char*)lua_tostring(vm, 1), &host_ip, &vlan_id, buf, sizeof(buf));
+
+  if(!ntop_interface) return(CONST_LUA_ERROR);
+
+  host = ntop_interface->findHostByIP(get_allowed_nets(vm), host_ip, vlan_id);
+
+  if(host)
+    host->requestDataReset();
+
+  lua_pushboolean(vm, (host != NULL));
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
 static int ntop_is_pro(lua_State *vm) {
   ntop->getTrace()->traceEvent(TRACE_DEBUG, "%s() called", __FUNCTION__);
   lua_pushboolean(vm, ntop->getPrefs()->is_pro_edition());
@@ -8012,6 +8039,7 @@ static const luaL_Reg ntop_interface_reg[] = {
   { "getInterfaceTimeseries",   ntop_get_interface_timeseries },
   { "resetCounters",            ntop_interface_reset_counters },
   { "resetHostStats",           ntop_interface_reset_host_stats },
+  { "deleteHostData",           ntop_interface_delete_host_data },
 
   { "getnDPIStats",             ntop_get_ndpi_interface_stats },
   { "getnDPIProtoName",         ntop_get_ndpi_protocol_name },

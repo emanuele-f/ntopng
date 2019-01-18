@@ -71,6 +71,7 @@ Host::~Host() {
   if(ssdpLocation)        free(ssdpLocation);
   if(m)                  delete m;
   if(flow_alert_counter) delete flow_alert_counter;
+  if(info_shadow)     free(info_shadow);
   if(info)            free(info);
 
   if(syn_flood_attacker_alert)  delete syn_flood_attacker_alert;
@@ -133,6 +134,7 @@ void Host::set_host_label(char *label_name, bool ignoreIfPresent) {
 void Host::initialize(Mac *_mac, u_int16_t _vlanId, bool init_all) {
   stats = NULL; /* it will be instantiated by specialized classes */
   stats_shadow = NULL;
+  data_delete_requested = false, stats_reset_requested = false;
 
   // readStats(); - Commented as if put here it's too early and the key is not yet set
 
@@ -153,7 +155,7 @@ void Host::initialize(Mac *_mac, u_int16_t _vlanId, bool init_all) {
 
   flow_alert_counter = NULL;
   good_low_flow_detected = false;
-  nextResolveAttempt = 0, info = NULL;
+  nextResolveAttempt = 0, info = NULL, info_shadow = NULL;
   host_label_set = false;
   num_uses = 0, symbolic_name = NULL, vlan_id = _vlanId % MAX_NUM_VLAN,
   first_seen = last_seen = iface->getTimeLastPktRcvd();
@@ -1112,12 +1114,35 @@ void Host::updateStats(struct timeval *tv) {
     stats_shadow = NULL;
   }
 
-  if(resetStatsRequested()) {
+  if(stats_reset_requested) {
     HostStats *new_stats = allocateStats();
     stats_shadow = stats;
     stats = new_stats;
-    requestStatsReset(false);
+
+    /* Reset internal state */
+    has_blocking_quota = false;
+
+    stats_reset_requested = false;
   }
 
   stats->updateStats(tv);
+}
+
+/* *************************************** */
+
+/* NOTE: this must be executed on the packet capture thread to avoid concurrency issues */
+void Host::checkDataReset() {
+  if(data_delete_requested) {
+    deleteHostData();
+    data_delete_requested = false;
+  }
+}
+
+/* *************************************** */
+
+void Host::deleteHostData() {
+  setName((char*)"");
+  setInfo((char*)"");
+  setSSDPLocation((char*)"");
+  host_label_set = false;
 }

@@ -40,9 +40,11 @@ LocalHost::LocalHost(NetworkInterface *_iface, char *ipAddress, u_int16_t _vlanI
 /* *************************************** */
 
 LocalHost::~LocalHost() {
-  serialize2redis(); /* possibly dumps counters and data to redis */
+  if(!data_delete_requested && !stats_reset_requested)
+    serialize2redis(); /* possibly dumps counters and data to redis */
 
   if(os)              free(os);
+  if(os_shadow)       free(os_shadow);
 }
 
 /* *************************************** */
@@ -56,7 +58,7 @@ void LocalHost::initialize() {
   local_network_id = -1;
   dhcpUpdated = false;
   drop_all_host_traffic = false;
-  os = NULL;
+  os = NULL, os_shadow = NULL;
 
   ip.isLocalHost(&local_network_id);
   networkStats = getNetworkStats(local_network_id);
@@ -272,7 +274,7 @@ void LocalHost::lua(lua_State* vm, AddressTree *ptree,
 
 /* *************************************** */
 
-void LocalHost::setOS(char *_os) {
+void LocalHost::setOS(char *_os, bool ignoreIfPresent) {
   if((mac == NULL)
      /*
        When this happens then this is a (NAT+)router and
@@ -281,8 +283,11 @@ void LocalHost::setOS(char *_os) {
      || (mac->getDeviceType() == device_networking)
      ) return;
 
-  if(os == NULL)
+  if((os == NULL) || ignoreIfPresent) {
+    if(os_shadow) free(os_shadow);
+    os_shadow = os;
     os = strdup(_os);
+  }
 
   if (!os) return;
 
@@ -309,4 +314,14 @@ void LocalHost::tsLua(lua_State* vm) {
   lua_pushstring(vm, host_id);
   lua_insert(vm, -2);
   lua_settable(vm, -3);
+}
+
+/* *************************************** */
+
+void LocalHost::deleteHostData() {
+  Host::deleteHostData();
+
+  setOS((char *)"", false /* overwrite */);
+  dhcpUpdated = false;
+  updateHostTrafficPolicy(NULL);
 }
