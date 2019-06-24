@@ -5,7 +5,7 @@
 local ts_utils = require("ts_utils_core")
 local rtt_utils = require("rtt_utils")
 local format_utils = require("format_utils")
-require "alert_utils"
+local alerts = require("alerts_api")
 
 local probe = {
   name = "RTT Monitor",
@@ -19,6 +19,19 @@ local debug = false
 -- no need to add the ifid in the ALERT_RAISED_KEY as
 -- rtt alerts are only for the system interface
 local ALERT_RAISED_KEY = "ntopng.cache.rtt.alert_raised"
+
+-- ##############################################
+
+-- cannot use regular entity "host" as the system interface
+-- doesn't have active hosts in memory, so we use a new
+-- entity "pinged_host"
+local ping_issues_alert = alerts:newAlert({
+   periodicity = "min",
+   type = "ping_issues",
+   severity = "error",
+   entity = "pinged_host",
+   formatter = formatAlertMessage,
+})
 
 -- ##############################################
 
@@ -52,34 +65,31 @@ end
 -- ##############################################
 
 local function engageReleaseRTTAlert(engage, ip_label, numeric_ip, current_value, upper_threshold)
-   -- we can safely use the "min" alert engine as this rtt.lua
-   -- is executed by system every minute 
-   local ALERT_ENGINE = alertEngine("min")
-   -- cannot use regular entity "host" as the system interface
-   -- doesn't have active hosts in memory, so we use a new
-   -- entity "pinged_host"
-   local ALERT_ENTITY = alertEntity("pinged_host")
-   local ALERT_KEY    = "rtt"
-   local ALERT_TYPE   = alertType("ping_issues")
-   local ALERT_SEVERITY = alertSeverity("error")
-
    local alert_raised = ntop.getHashCache(ALERT_RAISED_KEY, ip_label)
 
    if engage then
       if alert_raised ~= "engaged" then
 	 -- ENGAGE
 	 ntop.setHashCache(ALERT_RAISED_KEY, ip_label, "engaged")
-	 interface.engageAlert(ALERT_ENGINE, ALERT_ENTITY, ip_label, ALERT_KEY,
-			       ALERT_TYPE, ALERT_SEVERITY,
-			       formatAlertMessage(current_value, upper_threshold, ip_label, numeric_ip))
+
+   -- TODO use new api
+   ping_issues_alert:emit(ip_label, {
+    value = current_value,
+    threashold = upper_threshold,
+    label = ip_label,
+    ip = numeric_ip})
+	 --~ interface.engageAlert(ALERT_ENGINE, ALERT_ENTITY, ip_label, ALERT_KEY,
+			       --~ ALERT_TYPE, ALERT_SEVERITY,
+			       --~ formatAlertMessage(current_value, upper_threshold, ip_label, numeric_ip))
       end
    else -- release
       if alert_raised == "engaged" then
 	 -- RELEASE
 	 ntop.delHashCache(ALERT_RAISED_KEY, ip_label)
-	 interface.releaseAlert(ALERT_ENGINE, ALERT_ENTITY, ip_label, ALERT_KEY,
-				ALERT_TYPE,  ALERT_SEVERITY,
-				formatAlertMessage(current_value, upper_threshold, ip_label, numeric_ip))
+   -- TODO release
+	 --~ interface.releaseAlert(ALERT_ENGINE, ALERT_ENTITY, ip_label, ALERT_KEY,
+				--~ ALERT_TYPE,  ALERT_SEVERITY,
+				--~ formatAlertMessage(current_value, upper_threshold, ip_label, numeric_ip))
       end
    end
 end

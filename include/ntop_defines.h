@@ -850,10 +850,9 @@
 #define ALERTS_MANAGER_MAX_AGGR_SECS         300 /* Aggregate equal alerts if generated within this interval */
 #define ALERTS_MANAGER_MAX_ENTITY_ALERTS     1024
 #define ALERTS_MANAGER_MAX_FLOW_ALERTS       16384
-#define ALERTS_MANAGER_TABLE_NAME            "closed_alerts"
 #define ALERTS_MANAGER_FLOWS_TABLE_NAME      "flows_alerts"
-#define ALERTS_MANAGER_ENGAGED_TABLE_NAME    "engaged_alerts"
-#define ALERTS_MANAGER_STORE_NAME            "alerts_v9.db"
+#define ALERTS_MANAGER_TABLE_NAME            "alerts"
+#define ALERTS_MANAGER_STORE_NAME            "alerts_v10.db"
 #define ALERTS_MANAGER_QUEUE_NAME            "ntopng.alerts.ifid_%i.queue"
 #define ALERTS_MANAGER_MAKE_ROOM_ALERTS      "ntopng.cache.alerts.ifid_%i.make_room_closed_alerts"
 #define ALERTS_MANAGER_MAKE_ROOM_FLOW_ALERTS "ntopng.cache.alerts.ifid_%i.make_room_flow_alerts"
@@ -1045,7 +1044,6 @@ extern struct ntopngLuaContext* getUserdata(struct lua_State *vm);
 
 #define ALERT_ACTION_ENGAGE           "engage"
 #define ALERT_ACTION_RELEASE          "release"
-#define ALERT_ACTION_STORE            "store"
 
 //#define PROFILING
 #ifdef PROFILING

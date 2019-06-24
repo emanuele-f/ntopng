@@ -148,10 +148,10 @@ void HTTPserver::traceLogin(const char *user, bool authorized) {
 
   alert_json = json_object_to_json_string(jobj);
 
-  if (alert_json) {
-    am->storeGenericAlert(alert_entity_user, user, alert_user_activity, 
-      authorized ? alert_level_info : alert_level_warning, alert_json, when);
-  }
+  if(alert_json)
+    am->emitAlert(when, alert_engine_periodic_5min, alert_user_activity,
+      authorized ? alert_level_info : alert_level_warning,
+      alert_entity_user, user, alert_json);
 
   json_object_put(jobj);
 }

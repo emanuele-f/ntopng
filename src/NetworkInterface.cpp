@@ -6229,7 +6229,7 @@ void NetworkInterface::allocateNetworkStats() {
   }
 
   if(alertsManager)
-    alertLevel = alertsManager->getNumAlerts(true);
+    alertLevel = 0; // TODO FIXME use internal counter
   else
     alertLevel = 0;
 }

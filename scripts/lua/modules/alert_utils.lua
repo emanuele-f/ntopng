@@ -241,6 +241,30 @@ end
 
 -- ##############################################################################
 
+-- Apply a "engaged only" or "closed only" filter
+local function statusFilter(query, engaged)
+  local filter
+  local periodicity = 300 -- TODO FIXME
+  local engaged_duration = 2*periodicity
+  local engaged_deadline = os.time() - engaged_duration
+
+  if engaged then
+    filter = "alert_tstamp_end >= " .. engaged_deadline
+  else
+    filter = "alert_tstamp_end < " .. engaged_deadline
+  end
+
+  if string.find(query, "group by") then
+    -- put before
+    return(string.format("WHERE %s %s", filter, query))
+  else
+    -- put after
+    return(string.format("%s AND %s", query, filter))
+  end
+end
+
+-- ##############################################################################
+
 if ntop.isEnterprise() then
    local dirs = ntop.getDirs()
    package.path = dirs.installdir .. "/pro/scripts/lua/enterprise/modules/?.lua;" .. package.path
@@ -372,6 +396,7 @@ end
 
 function performAlertsQuery(statement, what, opts, force_query)
    local wargs = {"WHERE", "1=1"}
+   local oargs = {}
 
    if tonumber(opts.row_id) ~= nil then
       wargs[#wargs+1] = 'AND rowid = '..(opts.row_id)
@@ -467,27 +492,35 @@ function performAlertsQuery(statement, what, opts, force_query)
          order_by = "alert_tstamp"
       end
 
-      wargs[#wargs+1] = "ORDER BY "..order_by
-      wargs[#wargs+1] = string.upper(opts.sortOrder)
+      oargs[#oargs+1] = "ORDER BY "..order_by
+      oargs[#oargs+1] = string.upper(opts.sortOrder)
    end
 
    -- pagination
    if((tonumber(opts.perPage) ~= nil) and (tonumber(opts.currentPage) ~= nil)) then
       local to_skip = (tonumber(opts.currentPage)-1) * tonumber(opts.perPage)
-      wargs[#wargs+1] = "LIMIT"
-      wargs[#wargs+1] = to_skip..","..(opts.perPage)
+      oargs[#oargs+1] = "LIMIT"
+      oargs[#oargs+1] = to_skip..","..(opts.perPage)
    end
 
    local query = table.concat(wargs, " ")
    local res
 
+   if what == "engaged" then
+      query = statusFilter(query, true)
+   elseif what == "historical" then
+      query = statusFilter(query, false)
+   end
+
+   query = query .. " " .. table.concat(oargs, " ")
+
    -- Uncomment to debug the queries
    --~ tprint(statement.." (from "..what..") "..query)
 
    if what == "engaged" then
-      res = interface.queryAlertsRaw(true, statement, query, force_query)
+      res = interface.queryAlertsRaw(statement, query, force_query)
    elseif what == "historical" then
-      res = interface.queryAlertsRaw(false, statement, query, force_query)
+      res = interface.queryAlertsRaw(statement, query, force_query)
    elseif what == "historical-flows" then
       res = interface.queryFlowAlertsRaw(statement, query, force_query)
    else
@@ -992,9 +1025,9 @@ local function drawDropdown(status, selection_name, active_entry, entries_table,
       end
 
       if selection_name == "severity" then
-	 actual_entries = interface.queryAlertsRaw(engaged, "select alert_severity id, count(*) count", "group by alert_severity")
+	 actual_entries = interface.queryAlertsRaw("select alert_severity id, count(*) count", statusFilter("group by alert_severity", engaged))
       elseif selection_name == "type" then
-	 actual_entries = interface.queryAlertsRaw(engaged, "select alert_type id, count(*) count", "group by alert_type")
+	 actual_entries = interface.queryAlertsRaw("select alert_type id, count(*) count", statusFilter("group by alert_type", engaged))
       end
 
    end
@@ -1488,7 +1521,7 @@ function housekeepingAlertsMakeRoom(ifId)
 
    if ntop.getCache(k["entities"]) == "1" then
       ntop.delCache(k["entities"])
-      local res = interface.queryAlertsRaw(false,
+      local res = interface.queryAlertsRaw(
 					   "SELECT alert_entity, alert_entity_val, count(*) count",
 					   "GROUP BY alert_entity, alert_entity_val HAVING COUNT >= "..max_num_alerts_per_entity)
 
@@ -1496,7 +1529,7 @@ function housekeepingAlertsMakeRoom(ifId)
 	 local to_keep = (max_num_alerts_per_entity * 0.8) -- deletes 20% more alerts than the maximum number
 	 to_keep = round(to_keep, 0)
 	 -- tprint({e=e, total=e.count, to_keep=to_keep, to_delete=to_delete, to_delete_not_discounted=(e.count - max_num_alerts_per_entity)})
-	 local cleanup = interface.queryAlertsRaw(false,
+	 local cleanup = interface.queryAlertsRaw(
 						  "DELETE",
 						  "WHERE alert_entity="..e.alert_entity.." AND alert_entity_val=\""..e.alert_entity_val.."\" "
 						     .." AND rowid NOT IN (SELECT rowid FROM closed_alerts WHERE alert_entity="..e.alert_entity.." AND alert_entity_val=\""..e.alert_entity_val.."\" "
@@ -2270,17 +2303,7 @@ local function formatAlertMessage(ifid, engine, entity_type, entity_value, atype
    return msg, severity
 end
 
-local function engageReleaseAlert(engaged, ifid, engine, entity_type, entity_value, atype, alert_key, entity_info, alert_info, force)
-   local alert_msg, aseverity = formatAlertMessage(ifid, engine, entity_type, entity_value, atype, alert_key, entity_info, alert_info)
-   local alert_type = alertType(atype)
-   local alert_severity = alertSeverity(aseverity)
-
-   if engaged then
-      return interface.engageAlert(engine, alertEntity(entity_type), entity_value, alert_key, alert_type, alert_severity, alert_msg, force)
-   else
-      return interface.releaseAlert(engine, alertEntity(entity_type), entity_value, alert_key, alert_type, alert_severity, alert_msg, force)
-   end
-end
+-- #################################
 
 local function engageAlert(ifid, working_status, entity_type, entity_value, atype, akey, entity_info, alert_info, force)
    local engine = working_status.engine
@@ -2292,15 +2315,21 @@ local function engageAlert(ifid, working_status, entity_type, entity_value, atyp
 	 or (engaged_cache[entity_type][entity_value] == nil)
 	 or (engaged_cache[entity_type][entity_value][atype] == nil)
       or (engaged_cache[entity_type][entity_value][atype][akey] == nil)) then
-      engageReleaseAlert(true, ifid, engine, entity_type, entity_value, atype, akey, entity_info, alert_info, force)
+      local alert_msg, aseverity = formatAlertMessage(ifid, engine, entity_type, entity_value, atype, akey, entity_info, alert_info)
+      local alert_type = alertType(atype)
+      local alert_severity = alertSeverity(aseverity)
+
+      interface.emitAlert(os.time(), engine, alert_type, alert_severity, alertEntity(entity_type), entity_value, alert_msg, force)
       working_status.dirty_cache = true
    end
 end
 
 local function releaseAlert(ifid, engine, entity_type, entity_value, atype, akey, entity_info, alert_info, force)
-   if(verbose) then io.write("Release Alert: "..entity_value.." "..atype.." "..akey.."\n") end
+   --if(verbose) then 
+   io.write("Release Alert: "..entity_value.." "..atype.." "..akey.."\n")
 
-   engageReleaseAlert(false, ifid, engine, entity_type, entity_value, atype, akey, entity_info, alert_info, force)
+  -- TODO
+   --engageReleaseAlert(false, ifid, engine, entity_type, entity_value, atype, akey, entity_info, alert_info, force)
 end
 
 local function getEngagedAlertsCache(ifid, granularity)
@@ -2319,7 +2348,7 @@ local function getEngagedAlertsCache(ifid, granularity)
 	 local entity_type = alertEntityRaw(res.alert_entity)
 	 local entity_value = res.alert_entity_val
 	 local atype = alertTypeRaw(res.alert_type)
-	 local akey = res.alert_id
+   local akey = "" -- TODO
 
 	 engaged_cache[entity_type] = engaged_cache[entity_type] or {}
 	 engaged_cache[entity_type][entity_value] = engaged_cache[entity_type][entity_value] or {}
@@ -2704,6 +2733,14 @@ end
 
 -- #################################
 
+local function emitAlertFromNotification(notification)
+  return(interface.emitAlert(notification.when, alertEngine("5mins"),
+    notification.type, notification.severity,
+    notification.entity_type, notification.entity_value, notification.message))
+end
+
+-- #################################
+
 local function getMacUrl(mac)
    return ntop.getHttpPrefix() .. "/lua/mac_details.lua?host=" .. mac
 end
@@ -2931,12 +2968,7 @@ function check_process_alerts()
       if(decoded == nil) then
 	 if(verbose) then io.write("JSON Decoding error: "..message.."\n") end
       else
-	 interface.storeAlert(decoded.entity_type,
-			      decoded.entity_value,
-			      decoded.type,
-			      decoded.severity,
-			      decoded.message,
-			      decoded.when)
+        emitAlertFromNotification(decoded)
       end
    end
 end
@@ -3223,7 +3255,7 @@ function disableAlertsGeneration()
 					 local entity_type = alertEntityRaw(res.alert_entity)
 					 local entity_value = res.alert_entity_val
 					 local atype = alertTypeRaw(res.alert_type)
-					 local akey = res.alert_id
+					 local akey = "" -- TODO
 					 local engine = tonumber(res.alert_engine)
 
 					 releaseAlert(ifstats.id, engine, entity_type, entity_value, atype, akey, {}, {}, true --[[force]])

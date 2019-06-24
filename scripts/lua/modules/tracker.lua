@@ -47,7 +47,10 @@ function tracker.log(f_name, f_args)
   local old_iface = ifid
   interface.select(getSystemInterfaceId())
 
-  interface.storeAlert(entity, entity_value, alert_type, alert_severity, alert_json)
+  -- NOTE: can't use lua alerts api because it would create a dependency cycle
+  interface.emitAlert(os.time(), alertEngine("5mins"),
+    alert_type, alert_severity,
+    entity, entity_value, alert_json)
 
   interface.select(tostring(old_iface))
 end

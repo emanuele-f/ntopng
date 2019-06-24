@@ -103,7 +103,7 @@ u_int32_t Host::getNumAlerts(bool from_alertsmanager) {
   if(!from_alertsmanager)
     return(num_alerts_detected);
 
-  num_alerts_detected = iface->getAlertsManager()->getNumHostAlerts(this, true);
+  num_alerts_detected = 0; // TODO FIXME use internal counter from lua
 
   ntop->getTrace()->traceEvent(TRACE_DEBUG,
 			       "Refreshing alerts from alertsmanager [num: %i]",
