@@ -93,7 +93,7 @@ int AlertsManager::openStore() {
 
   snprintf(create_query, sizeof(create_query),
 	   "CREATE TABLE IF NOT EXISTS %s ("
-     "alert_periodicity INTEGER NOT NULL, "
+	   "alert_periodicity INTEGER NOT NULL, "
 	   "alert_tstamp     INTEGER NOT NULL, "
 	   "alert_tstamp_end INTEGER DEFAULT NULL, "
 	   "alert_type       INTEGER NOT NULL, "
@@ -331,8 +331,6 @@ int AlertsManager::emitAlert(time_t when, int periodicity, AlertType alert_type,
       if((rc = updateExistingAlert(cur_rowid, cur_counter + 1, when, query, sizeof(query))))
 	goto out;
     } else {
-      if(getNetworkInterface() && (alert_severity == alert_level_error))
-	getNetworkInterface()->incAlertLevel();
       /* This alert is being engaged */
 
       snprintf(query, sizeof(query),
@@ -363,7 +361,6 @@ int AlertsManager::emitAlert(time_t when, int periodicity, AlertType alert_type,
 	}
       }
 
-      num_alerts_engaged++;
       rc = 0;
     out:
       if(stmt) sqlite3_finalize(stmt);
@@ -652,7 +649,6 @@ int AlertsManager::storeFlowAlert(Flow *f) {
       }
     }
 
-    alerts_stored = true;
     rc = 0;
   out:
 

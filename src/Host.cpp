@@ -396,30 +396,6 @@ void Host::set_mac(char *m) {
 
 /* *************************************** */
 
-void Host::loadAlertsCounter() {
-  char buf[64], counters_key[64];
-  char rsp[16];
-  char *key = get_hostkey(buf, sizeof(buf), true /* force vlan */);
-
-  if(ntop->getPrefs()->are_alerts_disabled()) {
-    num_alerts_detected = 0;
-    return;
-  }
-
-  snprintf(counters_key, sizeof(counters_key), CONST_HOSTS_ALERT_COUNTERS, iface->get_id());
-
-  if (ntop->getRedis()->hashGet(counters_key, key, rsp, sizeof(rsp)) == 0)
-    num_alerts_detected = atoi(rsp);
-  else
-    num_alerts_detected = 0;
-
-#if 0
-  printf("%s: num_alerts_detected = %d\n", key, num_alerts_detected);
-#endif
-}
-
-/* *************************************** */
-
 bool Host::hasAnomalies() {
   time_t now = time(0);
 
@@ -1026,9 +1002,7 @@ void Host::luaUsedQuotas(lua_State* vm) {
 
 /* *************************************** */
 
-void Host::postHashAdd() {
-  loadAlertsCounter();
-}
+void Host::postHashAdd() {}
 
 /* *************************************** */
 

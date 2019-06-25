@@ -320,6 +320,7 @@ void NetworkInterface::init() {
   frequentProtocols = new FrequentTrafficItems(5);
   num_live_captures = 0;
   memset(live_captures, 0, sizeof(live_captures));
+  num_alerts_engaged = 0, has_alerts = false;
 
   db = NULL;
 #ifdef NTOPNG_PRO
@@ -5523,6 +5524,8 @@ void NetworkInterface::lua(lua_State *vm) {
   lua_push_bool_table_entry(vm, "has_seen_pods", hasSeenPods());
   lua_push_bool_table_entry(vm, "has_seen_containers", hasSeenContainers());
   lua_push_bool_table_entry(vm, "has_seen_ebpf_events", hasSeenEBPFEvents());
+  lua_push_bool_table_entry(vm, "has_alerts", has_alerts);
+  lua_push_int32_table_entry(vm, "num_alerts_engaged", num_alerts_engaged);
 
   lua_newtable(vm);
   lua_push_uint64_table_entry(vm, "packets",     getNumPackets());
@@ -5562,7 +5565,6 @@ void NetworkInterface::lua(lua_State *vm) {
   lua_push_str_table_entry(vm, "type", (char*)get_type());
   lua_push_uint64_table_entry(vm, "speed", ifSpeed);
   lua_push_uint64_table_entry(vm, "mtu", ifMTU);
-  lua_push_uint64_table_entry(vm, "alertLevel", alertLevel);
   lua_push_str_table_entry(vm, "ip_addresses", (char*)getLocalIPAddresses());
   bcast_domains->lua(vm);
 
@@ -6227,11 +6229,6 @@ void NetworkInterface::allocateNetworkStats() {
       oom_warning_sent = true;
     }
   }
-
-  if(alertsManager)
-    alertLevel = 0; // TODO FIXME use internal counter
-  else
-    alertLevel = 0;
 }
 
 /* **************************************** */
@@ -6900,14 +6897,15 @@ bool NetworkInterface::getVLANInfo(lua_State* vm, u_int16_t vlan_id) {
 /* **************************************** */
 
 static bool host_reload_alert_prefs(GenericHashEntry *host, void *user_data, bool *matched) {
-  bool full_refresh = (user_data != NULL) ? true : false;
+  //bool full_refresh = (user_data != NULL) ? true : false;
   Host *h = (Host*)host;
 
   h->refreshHostAlertPrefs();
   *matched = true;
 
-  if(full_refresh)
-    h->loadAlertsCounter();
+  //if(full_refresh)
+    //h->resetAlertCounters();
+
   return(false); /* false = keep on walking */
 }
 

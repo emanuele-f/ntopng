@@ -7849,6 +7849,77 @@ static int ntop_interface_emit_alert(lua_State* vm) {
 
 /* ****************************************** */
 
+static int ntop_interface_set_host_alerts(lua_State* vm) {
+  u_int16_t vlan_id = 0;
+  u_int32_t engaged_alerts, inc_total_alerts;
+  char buf[64], *host_ip;
+  Host *h;
+  NetworkInterface *ntop_interface = getCurrentInterface(vm);
+
+  ntop->getTrace()->traceEvent(TRACE_DEBUG, "%s() called", __FUNCTION__);
+
+  if(ntop_lua_check(vm, __FUNCTION__, 1, LUA_TSTRING) != CONST_LUA_OK) return(CONST_LUA_ERROR);
+  get_host_vlan_info((char*)lua_tostring(vm, 1), &host_ip, &vlan_id, buf, sizeof(buf));
+
+  if(ntop_lua_check(vm, __FUNCTION__, 2, LUA_TNUMBER) != CONST_LUA_OK) return(CONST_LUA_ERROR);
+  engaged_alerts = (u_int32_t) lua_tointeger(vm, 2);
+
+  if(ntop_lua_check(vm, __FUNCTION__, 3, LUA_TNUMBER) != CONST_LUA_OK) return(CONST_LUA_ERROR);
+  inc_total_alerts = (u_int32_t) lua_tointeger(vm, 3);
+
+  if((!ntop_interface) || ((h = ntop_interface->findHostByIP(get_allowed_nets(vm), host_ip, vlan_id)) == NULL))
+    lua_pushboolean(vm, false);
+  else {
+    h->setNumAlerts(engaged_alerts);
+    h->incTotalAlerts(inc_total_alerts);
+    lua_pushboolean(vm, true);
+  }
+
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_interface_set_engaged_alerts(lua_State* vm) {
+  u_int32_t engaged_alerts;
+  NetworkInterface *ntop_interface = getCurrentInterface(vm);
+
+  ntop->getTrace()->traceEvent(TRACE_DEBUG, "%s() called", __FUNCTION__);
+
+  if(ntop_lua_check(vm, __FUNCTION__, 1, LUA_TNUMBER) != CONST_LUA_OK) return(CONST_LUA_ERROR);
+  engaged_alerts = (u_int32_t) lua_tointeger(vm, 1);
+
+  if(!ntop_interface)
+    return(CONST_LUA_ERROR);
+
+  ntop_interface->setNumAlertsEngaged(engaged_alerts);
+
+  lua_pushnil(vm);
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_interface_set_has_alerts(lua_State* vm) {
+  bool has_alerts;
+  NetworkInterface *ntop_interface = getCurrentInterface(vm);
+
+  ntop->getTrace()->traceEvent(TRACE_DEBUG, "%s() called", __FUNCTION__);
+
+  if(ntop_lua_check(vm, __FUNCTION__, 1, LUA_TBOOLEAN) != CONST_LUA_OK) return(CONST_LUA_ERROR);
+  has_alerts = lua_toboolean(vm, 1);
+
+  if(!ntop_interface)
+    return(CONST_LUA_ERROR);
+
+  ntop_interface->setHasAlerts(has_alerts);
+
+  lua_pushnil(vm);
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
 static int ntop_interface_get_pods_stats(lua_State* vm) {
   NetworkInterface *ntop_interface = getCurrentInterface(vm);
 
@@ -7891,25 +7962,6 @@ static int ntop_interface_reload_companions(lua_State* vm) {
     iface->reloadCompanions();
 
   return CONST_LUA_OK;
-}
-
-/* ****************************************** */
-
-static int ntop_interface_get_cached_num_alerts(lua_State* vm) {
-  NetworkInterface *iface = getCurrentInterface(vm);
-  AlertsManager *am;
-
-  ntop->getTrace()->traceEvent(TRACE_DEBUG, "%s() called", __FUNCTION__);
-
-  if(!iface || !(am = iface->getAlertsManager()))
-    return(CONST_LUA_ERROR);
-
-  // TODO
-  lua_newtable(vm);
-  lua_push_int32_table_entry(vm, "num_alerts_engaged", 0);
-  lua_push_int32_table_entry(vm, "alerts_stored", 0);
-
-  return(CONST_LUA_OK);
 }
 
 /* ****************************************** */
@@ -8627,11 +8679,13 @@ static const luaL_Reg ntop_interface_reg[] = {
   { "isCaptureRunning",       ntop_is_capture_running                 },
   { "stopRunningCapture",     ntop_stop_running_capture               },
 
-  /* Alert Generation */
+  /* Alerts */
   { "queryAlertsRaw",         ntop_interface_query_alerts_raw         },
   { "queryFlowAlertsRaw",     ntop_interface_query_flow_alerts_raw    },
-  { "getCachedNumAlerts",     ntop_interface_get_cached_num_alerts    },
   { "emitAlert",              ntop_interface_emit_alert               },
+  { "setHostAlerts",          ntop_interface_set_host_alerts          },
+  { "setInterfaceEngagedAlerts",  ntop_interface_set_engaged_alerts   },
+  { "setInterfaceHasAlerts",  ntop_interface_set_has_alerts           },
 
   /* eBPF, Containers and Companion Interfaces */
   { "getPodsStats",           ntop_interface_get_pods_stats           },

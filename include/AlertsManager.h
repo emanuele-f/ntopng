@@ -30,8 +30,6 @@ class AlertsManager : protected StoreManager {
  private:
   char queue_name[CONST_MAX_LEN_REDIS_KEY];
   bool store_opened, store_initialized;
-  u_int32_t num_alerts_engaged;
-  bool alerts_stored;
   int openStore();
 
   /* methods used for alerts that have a timespan */
