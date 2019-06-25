@@ -243,16 +243,9 @@ end
 
 -- Apply a "engaged only" or "closed only" filter
 local function statusFilter(query, engaged)
-  local filter
-  local periodicity = 300 -- TODO FIXME
-  local engaged_duration = 2*periodicity
-  local engaged_deadline = os.time() - engaged_duration
-
-  if engaged then
-    filter = "alert_tstamp_end >= " .. engaged_deadline
-  else
-    filter = "alert_tstamp_end < " .. engaged_deadline
-  end
+  local comparison = ternary(engaged, ">=", "<")
+  local now = os.time()
+  local filter = string.format("alert_tstamp_end %s (%u - alert_periodicity)", comparison, now)
 
   if string.find(query, "group by") then
     -- put before
@@ -470,10 +463,6 @@ function performAlertsQuery(statement, what, opts, force_query)
       wargs[#wargs+1] = "AND alert_severity = "..(opts.alert_severity)
    end
 
-   if tonumber(opts.alert_engine) ~= nil then
-      wargs[#wargs+1] = "AND alert_engine = "..(opts.alert_engine)
-   end
-
    if((not isEmptyString(opts.sortColumn)) and (not isEmptyString(opts.sortOrder))) then
       local order_by
 
@@ -552,7 +541,6 @@ end
 function deleteAlerts(what, options)
    local opts = getUnpagedAlertOptions(options or {})
    performAlertsQuery("DELETE", what, opts)
-   invalidateEngagedAlertsCache(getInterfaceId(ifname))
 end
 
 -- #################################
@@ -2061,10 +2049,6 @@ end
 
 -- #################################
 
-local function getEngagedAlertsCacheKey(ifid, granularity)
-   return "ntopng.cache.engaged_alerts_cache_ifid_"..ifid.."_".. granularity
-end
-
 local function getConfiguredAlertsThresholds(ifname, granularity)
    local thresholds_key = get_alerts_hash_name(granularity, ifname)
    local thresholds_config = {}
@@ -2305,93 +2289,19 @@ end
 
 -- #################################
 
-local function engageAlert(ifid, working_status, entity_type, entity_value, atype, akey, entity_info, alert_info, force)
-   local engine = working_status.engine
-   local engaged_cache = working_status.engaged_cache
-
-   if(verbose) then io.write("Engage Alert: "..entity_value.." "..atype.." "..akey.."\n") end
-
-   if ((engaged_cache[entity_type] == nil)
-	 or (engaged_cache[entity_type][entity_value] == nil)
-	 or (engaged_cache[entity_type][entity_value][atype] == nil)
-      or (engaged_cache[entity_type][entity_value][atype][akey] == nil)) then
-      local alert_msg, aseverity = formatAlertMessage(ifid, engine, entity_type, entity_value, atype, akey, entity_info, alert_info)
-      local alert_type = alertType(atype)
-      local alert_severity = alertSeverity(aseverity)
-
-      interface.emitAlert(os.time(), engine, alert_type, alert_severity, alertEntity(entity_type), entity_value, alert_msg, force)
-      working_status.dirty_cache = true
-   end
-end
-
-local function releaseAlert(ifid, engine, entity_type, entity_value, atype, akey, entity_info, alert_info, force)
-   --if(verbose) then 
-   io.write("Release Alert: "..entity_value.." "..atype.." "..akey.."\n")
-
-  -- TODO
-   --engageReleaseAlert(false, ifid, engine, entity_type, entity_value, atype, akey, entity_info, alert_info, force)
-end
-
-local function getEngagedAlertsCache(ifid, granularity)
-   local engaged_cache = ntop.getCache(getEngagedAlertsCacheKey(ifid, granularity))
-
-   if isEmptyString(engaged_cache) then
-      engaged_cache = {}
-      local sql_res = performAlertsQuery("select *", "engaged", {alert_engine = alertEngine(granularity)}) or {}
-
-      if verbose then
-	 io.write("Resync alert cache:\n")
-	 tprint(sql_res)
-      end
-
-      for _, res in pairs(sql_res) do
-	 local entity_type = alertEntityRaw(res.alert_entity)
-	 local entity_value = res.alert_entity_val
-	 local atype = alertTypeRaw(res.alert_type)
-   local akey = "" -- TODO
-
-	 engaged_cache[entity_type] = engaged_cache[entity_type] or {}
-	 engaged_cache[entity_type][entity_value] = engaged_cache[entity_type][entity_value] or {}
-	 engaged_cache[entity_type][entity_value][akey] = engaged_cache[entity_type][entity_value][akey] or {}
-	 engaged_cache[entity_type][entity_value][atype] = engaged_cache[entity_type][entity_value][atype] or {}
-	 engaged_cache[entity_type][entity_value][atype][akey] = true
-      end
-
-      if ntop.getPref("ntopng.prefs.disable_alerts_generation") ~= "1" then
-	 ntop.setCache(getEngagedAlertsCacheKey(ifid, granularity), j.encode(engaged_cache))
-      end
-   else
-      engaged_cache = j.decode(engaged_cache, 1, nil)
-   end
-
-   return engaged_cache
-end
-
-function invalidateEngagedAlertsCache(ifid)
-   local keys = ntop.getKeysCache(getEngagedAlertsCacheKey(ifid, "*")) or {}
-
-   for key in pairs(keys) do
-      ntop.delCache(key)
-   end
-
-   if(verbose) then io.write("Engaged Alerts Cache invalidated\n") end
-end
-
--- #################################
-
 local function check_entity_alerts(ifid, entity_type, entity_value, working_status, old_entity_info, entity_info)
    if are_alerts_suppressed(entity_value, ifid) then return end
 
    local engine = working_status.engine
    local granularity = working_status.granularity
-   local engaged_cache = working_status.engaged_cache
    local current_alerts = {}
    local past_alert_info = {}
    local invalidate = false
+   local now = os.time()
 
-   local function addAlertInfo(info_arr, atype, akey, alert_info)
-      info_arr[atype] = info_arr[atype] or {}
-      info_arr[atype][akey] = alert_info or {}
+   local function generateAlert(info_arr, atype, akey, alert_info)
+      local alert_msg, aseverity = formatAlertMessage(ifid, working_status.engine, entity_type, entity_value, atype, akey, entity_info, alert_info)
+      interface.emitAlert(now, working_status.interval, alertType(atype), alertSeverity(aseverity), alertEntity(entity_type), entity_value, alert_msg)
    end
 
    local function getAnomalyType(anomal_name)
@@ -2427,10 +2337,10 @@ local function check_entity_alerts(ifid, entity_type, entity_value, working_stat
 	 end
 
 	 if not isEmptyString(anomal_type) then
-	    addAlertInfo(current_alerts, anomal_type, anomal_name, anomaly)
+	    generateAlert(current_alerts, anomal_type, anomal_name, anomaly)
 	 else
 	    -- default anomaly - empty alert key
-	    addAlertInfo(current_alerts, anomal_name, "", anomaly)
+	    generateAlert(current_alerts, anomal_name, "", anomaly)
 	 end
 
 	 ::skip::
@@ -2444,46 +2354,13 @@ local function check_entity_alerts(ifid, entity_type, entity_value, working_stat
       local exceeded, alert_info = entity_threshold_crossed(granularity, old_entity_info, entity_info, threshold)
 
       if exceeded then
-	 addAlertInfo(current_alerts, atype, akey, alert_info)
+	 generateAlert(current_alerts, atype, akey, alert_info)
       else
 	 -- save past alert information
-	 addAlertInfo(past_alert_info, atype, akey, alert_info)
+	 generateAlert(past_alert_info, atype, akey, alert_info)
       end
    end
    
-   if(engaged_cache == nil) then
-      return
-   end
-
-   -- Engage logic
-   for atype, akeys in pairs(current_alerts) do
-      for akey, alert_info in pairs(akeys) do
-	 engageAlert(ifid, working_status, entity_type, entity_value, atype, akey, entity_info, alert_info)
-      end
-   end
-
-   -- Release logic
-   if (engaged_cache[entity_type] ~= nil) and (engaged_cache[entity_type][entity_value] ~= nil) then
-      for atype, akeys in pairs(engaged_cache[entity_type][entity_value]) do
-	 for akey, _ in pairs(akeys) do
-	    -- mark the alert as processed
-	    engaged_cache[entity_type][entity_value][atype][akey] = "processed"
-
-	    if (current_alerts[atype] == nil) or (current_alerts[atype][akey] == nil) then
-	       local alert_info
-
-	       if (past_alert_info[atype] ~= nil) and (past_alert_info[atype][akey] ~= nil) then
-		  alert_info = past_alert_info[atype][akey]
-	       else
-		  alert_info = {}
-	       end
-
-	       releaseAlert(ifid, engine, entity_type, entity_value, atype, akey, entity_info, alert_info)
-	       working_status.dirty_cache = true
-	    end
-	 end
-      end
-   end
 end
 
 -- #################################
@@ -2644,10 +2521,6 @@ end
 
 local function check_inactive_hosts_alerts(ifid, working_status)
    local inactive_hosts_hash = string.format(inactive_hosts_hash_key, ifid)
-   local engaged_cache = working_status.engaged_cache
-   local engine = working_status.engine
-   local entity_type = "host"
-   local atype = "inactivity"
    local akey = working_status.granularity
 
    local keys = ntop.getMembersCache(inactive_hosts_hash) or {}
@@ -2657,26 +2530,11 @@ local function check_inactive_hosts_alerts(ifid, working_status)
       local entity_value = hostinfo2hostkey(hk, nil, true --[[force vlan]])
       local host_info = interface.getHostInfo(hk["host"], hk["vlan"])
 
-      -- tprint({engaged_cache = engaged_cache})
       -- tprint({inactive_host=inactive_host, alert_status = alert_status, ip = hk["host"], vlan = hk["vlan"], hostkey = hk, entity_type = entity_type or "nil", entity_value = entity_value or "nil", atype  = atype or "nil", akey = akey or "nil"})
 
-      if engaged_cache[entity_type]
-	 and engaged_cache[entity_type][entity_value]
-	 and engaged_cache[entity_type][entity_value][atype]
-      and engaged_cache[entity_type][entity_value][atype][akey] then
-	 -- mark it as "processed" otherwise the weird undocumented function
-	 -- finalizefinalizeAlertsWorkingStatus will release the alert even
-	 -- when it should not be released.
-	 engaged_cache[entity_type][entity_value][atype][akey] = "processed"
-
-	 if host_info then
-	    -- RELEASE
-	    releaseAlert(ifid, engine, entity_type, entity_value, atype, akey)
-	    working_status.dirty_cache = true
-	 end
-      elseif not host_info then
-	 -- ENGAGE
-	 engageAlert(ifid, working_status, entity_type, entity_value, atype, akey)
+      if not host_info then
+        local alert_msg, aseverity = formatAlertMessage(ifid, working_status.engine, entity_type, entity_value, atype, akey, entity_info, alert_info)
+        interface.emitAlert(os.time(), 0, alertType("inactivity"), aseverity, alertEntity("host"), entity_value, alert_msg)
       end
    end
 end
@@ -2689,35 +2547,11 @@ function newAlertsWorkingStatus(ifstats, granularity)
       engine = alertEngine(granularity),
       checkpoint_id = checkpointId(granularity),
       ifid = ifstats.id,
-      engaged_cache = getEngagedAlertsCache(ifstats.id, granularity),
       configured_thresholds = getConfiguredAlertsThresholds(ifstats.name, granularity),
-      dirty_cache = false,
       now = os.time(),
       interval = granularity2sec(granularity),
    }
    return res
-end
-
-function finalizeAlertsWorkingStatus(working_status)
-   if((working_status == nil) or (working_status.engaged_cache == nil)) then return end
-   
-   -- Process the remaining alerts to release, e.g. related to expired hosts
-   for entity_type, entity_values in pairs(working_status.engaged_cache) do
-      for entity_value, alert_types in pairs(entity_values) do
-         for atype, alert_keys in pairs(alert_types) do
-            for akey, status in pairs(alert_keys) do
-               if status ~= "processed" then
-                  releaseAlert(working_status.ifid, working_status.engine, entity_type, entity_value, atype, akey, {}, {})
-                  working_status.dirty_cache = true
-               end
-            end
-         end
-      end
-   end
-
-   if working_status.dirty_cache then
-      invalidateEngagedAlertsCache(working_status.ifid)
-   end
 end
 
 -- #################################
@@ -2734,7 +2568,7 @@ end
 -- #################################
 
 local function emitAlertFromNotification(notification)
-  return(interface.emitAlert(notification.when, alertEngine("5mins"),
+  return(interface.emitAlert(notification.when, 0,
     notification.type, notification.severity,
     notification.entity_type, notification.entity_value, notification.message))
 end
@@ -3218,8 +3052,6 @@ function scanAlerts(granularity, ifstats)
 	 test_utils.check_alerts(ifid, working_status)
       end
    end
-
-   finalizeAlertsWorkingStatus(working_status)
 end
 
 -- #################################
@@ -3240,32 +3072,7 @@ function disableAlertsGeneration()
    -- Ensure we do not conflict with others
    ntop.setPref("ntopng.prefs.disable_alerts_generation", "1")
    ntop.reloadPreferences()
-   ntop.msleep(3000)
-
-   local selected_interface = ifname
-   local ifnames = interface.getIfNames()
-
-   -- Release any engaged alert
-   callback_utils.foreachInterface(ifnames, nil, function(ifname, ifstats)
-				      if(verbose) then io.write("[Alerts] Processing interface "..ifname.."...\n") end
-
-				      local sql_res = performAlertsQuery("select *", "engaged", {}, true  --[[force]]) or {}
-
-				      for _, res in pairs(sql_res) do
-					 local entity_type = alertEntityRaw(res.alert_entity)
-					 local entity_value = res.alert_entity_val
-					 local atype = alertTypeRaw(res.alert_type)
-					 local akey = "" -- TODO
-					 local engine = tonumber(res.alert_engine)
-
-					 releaseAlert(ifstats.id, engine, entity_type, entity_value, atype, akey, {}, {}, true --[[force]])
-				      end
-   end)
-
-   deleteCachePattern(getEngagedAlertsCacheKey("*", "*"))
-
    if(verbose) then io.write("[Alerts] Disable done\n") end
-   interface.select(selected_interface)
 end
 
 -- #################################
@@ -3299,7 +3106,6 @@ function flushAlertsData()
    if(verbose) then io.write("[Alerts] Flushing Redis configuration...\n") end
    deleteCachePattern("ntopng.prefs.*alert*")
    deleteCachePattern("ntopng.alerts.*")
-   deleteCachePattern(getEngagedAlertsCacheKey("*", "*"))
    deleteCachePattern(getGlobalAlertsConfigurationHash("*", "*", "*"))
    ntop.delCache(get_alerts_suppressed_hash_name("*"))
    for _, key in pairs(get_make_room_keys("*")) do deleteCachePattern(key) end

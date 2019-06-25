@@ -683,10 +683,9 @@ function driver:_exportTsFile(fname)
   if((ret == nil) or ((ret.RESPONSE_CODE ~= 200) and (ret.RESPONSE_CODE ~= 204))) then
     local msg = self:_exportErrorMsg(ret)
 
-    local influx_alert = alerts:getAlert({
+    local influx_alert = alerts:newAlert({
       entity = "influx_db",
       type = "influxdb_export_failure",
-      periodicity = "minute",
       severity = "error",
     })
 

@@ -317,10 +317,9 @@ local function checkListsUpdate(timeout)
 
         local msg = i18n("category_lists.error_occurred", {name=list_name, err=last_error})
 
-        local list_alert = alerts:getAlert({
+        local list_alert = alerts:newAlert({
           entity = "category_lists",
           type = "list_download_failed",
-          periodicity = "hour", -- TODO more flexible?
           severity = "warning",
         })
 

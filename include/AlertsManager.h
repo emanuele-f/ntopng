@@ -63,10 +63,9 @@ class AlertsManager : protected StoreManager {
   /*
     ========== Generic alerts API =========
    */
-  int emitAlert(time_t when, AlertEngine alert_engine, AlertType alert_type,
+  int emitAlert(time_t when, int periodicity, AlertType alert_type,
       AlertLevel alert_severity, AlertEntity alert_entity, const char *alert_entity_value,
-      const char *alert_json, const char *alert_origin=NULL, const char *alert_target=NULL,
-      bool ignore_disabled=false, bool check_maximum=true);
+      const char *alert_json, bool ignore_disabled = false, bool check_maximum = true);
 
   /*
     ========== FLOW alerts API =========

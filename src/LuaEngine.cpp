@@ -7800,11 +7800,10 @@ static int ntop_interface_emit_alert(lua_State* vm) {
   char *entity_value;
   AlertLevel alert_severity;
   AlertType alert_type;
-  AlertEngine alert_engine;
   AlertEntity alert_entity;
   char *alert_json;
   AlertsManager *am;
-  int ret;
+  int ret, periodicity = 0;
   bool ignore_disabled = false, check_maximum = true;
   time_t when;
 
@@ -7814,7 +7813,7 @@ static int ntop_interface_emit_alert(lua_State* vm) {
   when = (int)lua_tonumber(vm, 1);
 
   if(ntop_lua_check(vm, __FUNCTION__, 2, LUA_TNUMBER) != CONST_LUA_OK) return(CONST_LUA_ERROR);
-  alert_engine = (AlertEngine)lua_tonumber(vm, 2);
+  periodicity = (int)lua_tonumber(vm, 2);
 
   if(ntop_lua_check(vm, __FUNCTION__, 3, LUA_TNUMBER) != CONST_LUA_OK) return(CONST_LUA_ERROR);
   alert_type = (AlertType)lua_tonumber(vm, 3);
@@ -7838,9 +7837,8 @@ static int ntop_interface_emit_alert(lua_State* vm) {
      || ((am = ntop_interface->getAlertsManager()) == NULL))
     return(CONST_LUA_ERROR);
 
-  ret = am->emitAlert(when, alert_engine, alert_type, alert_severity,
-    alert_entity, entity_value, alert_json, NULL, NULL,
-    ignore_disabled, check_maximum);
+  ret = am->emitAlert(when, periodicity, alert_type, alert_severity,
+    alert_entity, entity_value, alert_json, ignore_disabled, check_maximum);
 
   if(ret < 0)
     ntop->getTrace()->traceEvent(TRACE_ERROR, "emitAlert failed with code %d", ret);
