@@ -109,11 +109,10 @@ int AlertsManager::openStore() {
 	   "CREATE INDEX IF NOT EXISTS t1i_tstamp_e ON %s(alert_tstamp_end); "
 	   "CREATE INDEX IF NOT EXISTS t2i_type     ON %s(alert_type); "
 	   "CREATE INDEX IF NOT EXISTS t2i_severity ON %s(alert_severity); "
-	   "CREATE INDEX IF NOT EXISTS t1i_hash     ON %s(alert_type, alert_severity, alert_entity, alert_entity_val, alert_hash); "
-	   "CREATE UNIQUE INDEX IF NOT EXISTS t2i_u ON %s(alert_periodicity, alert_entity, alert_entity_val); ",
+	   "CREATE INDEX IF NOT EXISTS t1i_hash     ON %s(alert_type, alert_severity, alert_entity, alert_entity_val, alert_hash); ",
 	   ALERTS_MANAGER_TABLE_NAME, ALERTS_MANAGER_TABLE_NAME, ALERTS_MANAGER_TABLE_NAME,
 	   ALERTS_MANAGER_TABLE_NAME, ALERTS_MANAGER_TABLE_NAME, ALERTS_MANAGER_TABLE_NAME,
-	   ALERTS_MANAGER_TABLE_NAME, ALERTS_MANAGER_TABLE_NAME);
+	   ALERTS_MANAGER_TABLE_NAME);
   m.lock(__FILE__, __LINE__);
   rc = exec_query(create_query, NULL, NULL);
   if(rc == SQLITE_ERROR) ntop->getTrace()->traceEvent(TRACE_ERROR, "SQL Error: %s", sqlite3_errmsg(db));
@@ -219,6 +218,8 @@ int AlertsManager::isAlertExisting(AlertType alert_type, AlertLevel alert_severi
     goto out;
   }
 
+  ntop->getTrace()->traceEvent(TRACE_DEBUG, "isAlertExisting: %s", sqlite3_expanded_sql(stmt));
+
   /* Try and read the rowid (if the record exists) */
   while((step = sqlite3_step(stmt)) != SQLITE_DONE) {
     if(step == SQLITE_ROW) {
@@ -264,6 +265,8 @@ int AlertsManager::updateExistingAlert(u_int64_t rowid, u_int64_t new_counter, t
     rc = -1;
     goto out;
   }
+
+  ntop->getTrace()->traceEvent(TRACE_DEBUG, "updateExistingAlert: %s", sqlite3_expanded_sql(stmt));
 
   while((step = sqlite3_step(stmt)) != SQLITE_DONE) {
     if(step == SQLITE_ERROR) {
@@ -334,9 +337,9 @@ int AlertsManager::emitAlert(time_t when, int periodicity, AlertType alert_type,
       /* This alert is being engaged */
 
       snprintf(query, sizeof(query),
-	       "REPLACE INTO %s "
-	       "(alert_periodicity, alert_tstamp, alert_tstamp_end, alert_type, alert_severity, alert_entity, alert_entity_val, alert_json) "
-	       "VALUES (?, ?, ?, ?, ?, ?, ?, ?); ",
+	       "INSERT INTO %s "
+	       "(alert_periodicity, alert_tstamp, alert_tstamp_end, alert_type, alert_severity, alert_entity, alert_entity_val, alert_json, alert_hash) "
+	       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?); ",
 	       ALERTS_MANAGER_TABLE_NAME);
 
       if(sqlite3_prepare_v2(db, query, -1,  &stmt, 0)
@@ -347,11 +350,14 @@ int AlertsManager::emitAlert(time_t when, int periodicity, AlertType alert_type,
 	 || sqlite3_bind_int(stmt,   5,  static_cast<int>(alert_severity))
 	 || sqlite3_bind_int(stmt,   6,  static_cast<int>(alert_entity))
 	 || sqlite3_bind_text(stmt,  7,  alert_entity_value, -1, SQLITE_STATIC)
-	 || sqlite3_bind_text(stmt,  8,  alert_json, -1, SQLITE_STATIC)) {
+	 || sqlite3_bind_text(stmt,  8,  alert_json, -1, SQLITE_STATIC)
+   || sqlite3_bind_int64(stmt, 9,  static_cast<long int>(alert_hash))) {
 	ntop->getTrace()->traceEvent(TRACE_ERROR, "SQL Error: %s", sqlite3_errmsg(db));
 	rc = -2;
 	goto out;
       }
+
+      ntop->getTrace()->traceEvent(TRACE_DEBUG, "emitAlert: %s", sqlite3_expanded_sql(stmt));
 
       while((rc = sqlite3_step(stmt)) != SQLITE_DONE) {
 	if(rc == SQLITE_ERROR) {
