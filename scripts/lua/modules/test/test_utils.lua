@@ -5,8 +5,8 @@
 local test_utils = {}
 
 local function test_error(msg)
-   interface.storeAlert(alertEntity("test"), "test",
-    			alertType("test_failed"), alertSeverity("error"), msg)
+  interface.emitAlert(os.time(), 0, alertType("test_failed"),
+      alertSeverity("error"), alertEntity("test"), "test", msg)
 end
 
 local function test_assert(cond, error_msg)

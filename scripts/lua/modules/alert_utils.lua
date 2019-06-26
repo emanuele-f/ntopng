@@ -2623,8 +2623,7 @@ function check_mac_ip_association_alerts()
       if elems ~= nil then
          --io.write(elems.ip.." ==> "..message.."[".. elems.ifname .."]\n")
          interface.select(elems.ifname)
-         interface.storeAlert(alertEntity("mac"), elems.new_mac, alertType("mac_ip_association_change"), alertSeverity("warning"),
-                  i18n("alert_messages.mac_ip_association_change",
+         interface.emitAlert(os.time(), 0, alertType("mac_ip_association_change"), alertSeverity("warning"), alertEntity("mac"), elems.new_mac, i18n("alert_messages.mac_ip_association_change",
                   {device=name, ip=elems.ip,
                   old_mac=elems.old_mac, old_mac_url=getMacUrl(elems.old_mac),
                   new_mac=elems.new_mac, new_mac_url=getMacUrl(elems.new_mac)}))
@@ -2650,10 +2649,8 @@ function check_broadcast_domain_too_large_alerts()
 
 	 --io.write(elems.ip.." ==> "..message.."[".. elems.ifname .."]\n")
 	 interface.select(elems.ifname)
-	 interface.storeAlert(entity, entity_value,
-			      alertType("broadcast_domain_too_large"),
-			      alertSeverity("warning"),
-			      i18n("alert_messages.broadcast_domain_too_large",
+   interface.emitAlert(os.time(), 0, alertType("broadcast_domain_too_large"),
+      alertSeverity("warning"), entity, entity_value, i18n("alert_messages.broadcast_domain_too_large",
 				   {src_mac = elems.src_mac,
 				    src_mac_url = getMacUrl(elems.src_mac),
 				    dst_mac = elems.dst_mac,
@@ -2688,11 +2685,12 @@ function check_nfq_flushed_queue_alerts()
          -- io.write(elems.ip.." ==> "..message.."[".. elems.ifname .."]\n")
 
          interface.select(elems.ifname)
-         interface.storeAlert(entity, entity_value, alert_type, alert_severity,
-                  i18n("alert_messages.nfq_flushed",
-		       {name = elems.ifname, pct = elems.pct,
-			tot = elems.tot, dropped = elems.dropped,
-			url = ntop.getHttpPrefix().."/lua/if_stats.lua?ifid="..elems.ifid}))
+         interface.emitAlert(os.time(), 0, alert_type,
+            alert_severity, entity, entity_value, i18n("alert_messages.nfq_flushed",{
+                name = elems.ifname, pct = elems.pct,
+                tot = elems.tot, dropped = elems.dropped,
+                url = ntop.getHttpPrefix().."/lua/if_stats.lua?ifid="..elems.ifid
+          }))
       end
    end   
 end
@@ -2720,7 +2718,9 @@ function check_host_remote_to_remote_alerts()
 			   mac = get_symbolic_mac(elems.mac_address, true)})
 
          interface.select(getInterfaceName(elems.ifid))
-	 interface.storeAlert(alertEntity("host"), entity_value, alertType("remote_to_remote"), alertSeverity("warning"), msg)
+
+         interface.emitAlert(os.time(), 0, alertType("remote_to_remote"),
+            alertSeverity("warning"), alertEntity("host"), entity_value, msg)
       end
    end   
 end
@@ -2755,7 +2755,8 @@ function check_outside_dhcp_range_alerts()
 	 })
 
          interface.select(getInterfaceName(elems.ifid))
-	 interface.storeAlert(alertEntity("host"), entity_value, alertType("ip_outsite_dhcp_range"), alertSeverity("warning"), msg)
+         interface.emitAlert(os.time(), 0, alertType("ip_outsite_dhcp_range"),
+            alertSeverity("warning"), alertEntity("host"), entity_value, msg)
       end
    end
 end
@@ -2791,7 +2792,8 @@ function check_periodic_activities_alerts()
       })
 
       interface.select(elems.ifname)
-      interface.storeAlert(alertEntity("periodic_activity"), elems.path, alertType("slow_periodic_activity"), alertSeverity("warning"), msg)
+      interface.emitAlert(os.time(), 0, alertType("slow_periodic_activity"),
+            alertSeverity("warning"), alertEntity("periodic_activity"), elems.path, msg)
     end
   end
 end
@@ -2843,8 +2845,9 @@ local function check_macs_alerts(ifid, working_status)
 					 if alert_new_devices_enabled then
 					    local name = getDeviceName(mac)
 					    setSavedDeviceName(mac, name)
-					    interface.storeAlert(alertEntity("mac"), mac, alertType("new_device"), alertSeverity("warning"),
-								 i18n("alert_messages.a_new_device_has_connected", {device=name, url=getMacUrl(mac)}))
+              interface.emitAlert(os.time(), 0, alertType("new_device"),
+                alertSeverity("warning"), alertEntity("mac"), mac,
+                i18n("alert_messages.a_new_device_has_connected", {device=name, url=getMacUrl(mac)}))
 					 end
 				      end
 
@@ -2855,8 +2858,9 @@ local function check_macs_alerts(ifid, working_status)
 					 if alert_device_connection_enabled then
 					    local name = getDeviceName(mac)
 					    setSavedDeviceName(mac, name)
-					    interface.storeAlert(alertEntity("mac"), mac, alertType("device_connection"), alertSeverity("info"),
-								 i18n("alert_messages.device_has_connected", {device=name, url=getMacUrl(mac)}))
+              interface.emitAlert(os.time(), 0, alertType("device_connection"),
+                alertSeverity("info"), alertEntity("mac"), mac,
+                i18n("alert_messages.device_has_connected", {device=name, url=getMacUrl(mac)}))
 					 end
 				      else
 					 new_active_devices[mac] = 1
@@ -2871,8 +2875,9 @@ local function check_macs_alerts(ifid, working_status)
          ntop.delMembersCache(active_devices_set, mac)
 
          if alert_device_connection_enabled then
-            interface.storeAlert(alertEntity("mac"), mac, alertType("device_disconnection"), alertSeverity("info"),
-				 i18n("alert_messages.device_has_disconnected", {device=name, url=getMacUrl(mac)}))
+            interface.emitAlert(os.time(), 0, alertType("device_disconnection"),
+                alertSeverity("info"), alertEntity("mac"), mac,
+                i18n("alert_messages.device_has_disconnected", {device=name, url=getMacUrl(mac)}))
          end
       end
    end
@@ -2958,23 +2963,25 @@ function check_host_pools_alerts(ifid, working_status)
 
 	       if alerts_on_quota_exceeded then
 		  if info.bytes_exceeded and not prev_exceeded[1] then
-		     interface.storeAlert(alertEntity("host_pool"), tostring(pool), alertType("quota_exceeded"), alertSeverity("info"),
-					  i18n("alert_messages.subject_quota_exceeded", {
-						  pool = host_pools_utils.getPoolName(ifid, pool),
-						  url = getHostPoolUrl(pool),
-						  subject = i18n("alert_messages.proto_bytes_quotas", {proto=proto}),
-						  quota = bytesToSize(info.bytes_quota),
-						  value = bytesToSize(info.bytes_value)}))
+         interface.emitAlert(os.time(), 0, alertType("quota_exceeded"),
+                alertSeverity("info"), alertEntity("host_pool"), tostring(pool),
+                i18n("alert_messages.subject_quota_exceeded", {
+                  pool = host_pools_utils.getPoolName(ifid, pool),
+                  url = getHostPoolUrl(pool),
+                  subject = i18n("alert_messages.proto_bytes_quotas", {proto=proto}),
+                  quota = bytesToSize(info.bytes_quota),
+                  value = bytesToSize(info.bytes_value)}))
 		  end
 
 		  if info.time_exceeded and not prev_exceeded[2] then
-		     interface.storeAlert(alertEntity("host_pool"), alertType("quota_exceeded"), alertSeverity("info"),
-					  i18n("alert_messages.subject_quota_exceeded", {
-						  pool = host_pools_utils.getPoolName(ifid, pool),
-						  url = getHostPoolUrl(pool),
-						  subject = i18n("alert_messages.proto_time_quotas", {proto=proto}),
-						  quota = secondsToTime(info.time_quota),
-						  value = secondsToTime(info.time_value)}))
+         interface.emitAlert(os.time(), 0, alertType("quota_exceeded"),
+              alertSeverity("info"), alertEntity("host_pool"), tostring(pool),
+              i18n("alert_messages.subject_quota_exceeded", {
+                pool = host_pools_utils.getPoolName(ifid, pool),
+                url = getHostPoolUrl(pool),
+                subject = i18n("alert_messages.proto_time_quotas", {proto=proto}),
+                quota = secondsToTime(info.time_quota),
+                value = secondsToTime(info.time_value)}))
 		  end
 	       end
 
@@ -3008,10 +3015,10 @@ function check_host_pools_alerts(ifid, working_status)
 	       ntop.setMembersCache(active_pools_set, pool)
 
 	       if alert_pool_connection_enabled then
-		  interface.storeAlert(alertEntity("host_pool"), tostring(pool),
-				       alertType("host_pool_connection"), alertSeverity("info"),
-				       i18n("alert_messages.host_pool_has_connected",
-					    {pool=host_pools_utils.getPoolName(ifid, pool), url=getHostPoolUrl(pool)}))
+          interface.emitAlert(os.time(), 0, alertType("host_pool_connection"),
+              alertSeverity("info"), alertEntity("host_pool"), tostring(pool),
+              i18n("alert_messages.host_pool_has_connected",
+                {pool=host_pools_utils.getPoolName(ifid, pool), url=getHostPoolUrl(pool)}))
 	       end
 	    end
 	 end
@@ -3025,11 +3032,11 @@ function check_host_pools_alerts(ifid, working_status)
          ntop.delMembersCache(active_pools_set, pool)
 
          if alert_pool_connection_enabled then
-            interface.storeAlert(alertEntity("host_pool"), tostring(pool),
-				 alertType("host_pool_disconnection"), alertSeverity("info"),
-				 i18n("alert_messages.host_pool_has_disconnected",
-				      {pool=host_pools_utils.getPoolName(ifid, pool),
-				       url=getHostPoolUrl(pool)}))
+            interface.emitAlert(os.time(), 0, alertType("host_pool_disconnection"),
+              alertSeverity("info"), alertEntity("host_pool"), tostring(pool),
+              i18n("alert_messages.host_pool_has_disconnected",
+                {pool=host_pools_utils.getPoolName(ifid, pool),
+                url=getHostPoolUrl(pool)}))
          end
       end
    end
