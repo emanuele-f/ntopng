@@ -1043,6 +1043,7 @@ extern struct ntopngLuaContext* getUserdata(struct lua_State *vm);
 
 #define ALERT_ACTION_ENGAGE           "engage"
 #define ALERT_ACTION_RELEASE          "release"
+#define ALERT_ACTION_STORE            "store"
 
 //#define PROFILING
 #ifdef PROFILING

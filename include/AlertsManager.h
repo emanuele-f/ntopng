@@ -40,7 +40,7 @@ class AlertsManager : protected StoreManager {
   bool notifyAlert(AlertEntity alert_entity, const char *alert_entity_value,
 		   AlertType alert_type, AlertLevel alert_severity, const char *alert_json,
 		   const char *alert_origin, const char *alert_target,
-		   bool engage, time_t now, Flow *flow);
+		   const char *action, time_t now, Flow *flow);
 
   /* Compute a unique hash used to group alerts together */
   static u_int32_t alertHash(const char * const alert_json);

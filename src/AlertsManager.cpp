@@ -366,9 +366,10 @@ int AlertsManager::emitAlert(time_t when, int periodicity, AlertType alert_type,
       if(stmt) sqlite3_finalize(stmt);
       m.unlock(__FILE__, __LINE__);
 
+      /* NOTE: the release event is generated from lua */
       notifyAlert(alert_entity, alert_entity_value,
 		  alert_type, alert_severity, alert_json,
-		  NULL, NULL, true, when, NULL);
+		  NULL, NULL, (periodicity ? ALERT_ACTION_ENGAGE : ALERT_ACTION_STORE), when, NULL);
     }
 
     return rc;
@@ -382,7 +383,7 @@ bool AlertsManager::notifyAlert(AlertEntity alert_entity, const char *alert_enti
 				AlertType alert_type, AlertLevel alert_severity,
 				const char *alert_json,
 				const char *alert_origin, const char *alert_target,
-				bool engage, time_t when, Flow *flow) {
+				const char *action, time_t when, Flow *flow) {
   bool rv = false;
 
   if(!ntop->getPrefs()->are_alerts_disabled()
@@ -399,10 +400,7 @@ bool AlertsManager::notifyAlert(AlertEntity alert_entity, const char *alert_enti
       json_object_object_add(notification, "severity", json_object_new_int(alert_severity));
       json_object_object_add(notification, "message", json_object_new_string(alert_json));
       json_object_object_add(notification, "tstamp",  json_object_new_int64(when));
-      json_object_object_add(notification, "action",
-			     json_object_new_string(
-						    engage ? ALERT_ACTION_ENGAGE : ALERT_ACTION_RELEASE)
-			     );
+      json_object_object_add(notification, "action", json_object_new_string(action));
       
       /* optional */
       if(alert_origin) json_object_object_add(notification, "origin", json_object_new_string(alert_origin));
@@ -511,7 +509,7 @@ int AlertsManager::storeFlowAlert(Flow *f) {
 
     notifyAlert(alert_entity_flow, "flow",
 		alert_type, alert_severity, alert_json,
-		cli_ip, srv_ip, false, now, f);
+		cli_ip, srv_ip, ALERT_ACTION_STORE, now, f);
 
     m.lock(__FILE__, __LINE__);
 
