@@ -81,7 +81,6 @@ local function formatAlertRecord(alert_entity, record)
 end
 
 local alerts = getAlerts(status, alert_options)
-tprint(alerts)
 
 if alerts == nil then alerts = {} end
 

@@ -2312,7 +2312,7 @@ local function check_entity_alerts(ifid, entity_type, entity_value, working_stat
 
    local function generateAlert(info_arr, atype, akey, alert_info)
       local alert_msg, aseverity = formatAlertMessage(ifid, working_status.engine, entity_type, entity_value, atype, akey, entity_info, alert_info)
-      interface.emitAlert(now, working_status.interval, alertType(atype), alertSeverity(aseverity), alertEntity(entity_type), entity_value, alert_msg)
+      interface.emitAlert(now, working_status.interval, alertType(atype), alertSeverity(aseverity), alertEntity(entity_type), entity_value, alert_msg, akey)
    end
 
    local function getAnomalyType(anomal_name)

@@ -33,17 +33,17 @@ class AlertsManager : protected StoreManager {
   int openStore();
 
   /* methods used for alerts that have a timespan */
-  int isAlertExisting(AlertType alert_type, AlertLevel alert_severity, AlertEntity alert_entity, const char * const alert_entity_value, u_int32_t alert_hash, time_t when, char * const query_buf, ssize_t query_buf_len, bool * const is_existing, u_int64_t * const cur_rowid, u_int64_t * const cur_counter) const;
-  int updateExistingAlert(u_int64_t rowid, u_int64_t new_counter, time_t new_timestamp_end, char * const query_buf, ssize_t query_buf_len) const;
+  int isAlertExisting(time_t when, AlertType alert_type, const char *subtype,
+      int periodicity, AlertEntity alert_entity, const char * const alert_entity_value,
+      char * const query_buf, ssize_t query_buf_len,
+      bool * const is_existing, u_int64_t * const cur_rowid) const;
+  int updateExistingAlert(u_int64_t rowid, time_t new_timestamp_end, char * const query_buf, ssize_t query_buf_len) const;
   void markForMakeRoom(bool on_flows);
 
   bool notifyAlert(AlertEntity alert_entity, const char *alert_entity_value,
 		   AlertType alert_type, AlertLevel alert_severity, const char *alert_json,
 		   const char *alert_origin, const char *alert_target,
 		   const char *action, time_t now, Flow *flow);
-
-  /* Compute a unique hash used to group alerts together */
-  static u_int32_t alertHash(const char * const alert_json);
 
   /* methods used to retrieve alerts and counters with possible sql clause to filter */
   int queryAlertsRaw(lua_State *vm, const char *selection, const char *clauses, const char *table_name, bool ignore_disabled);
@@ -61,7 +61,7 @@ class AlertsManager : protected StoreManager {
   /*
     ========== Generic alerts API =========
    */
-  int emitAlert(time_t when, int periodicity, AlertType alert_type,
+  int emitAlert(time_t when, int periodicity, AlertType alert_type, const char *subtype,
       AlertLevel alert_severity, AlertEntity alert_entity, const char *alert_entity_value,
       const char *alert_json, bool ignore_disabled = false, bool check_maximum = true);
 

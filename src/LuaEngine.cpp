@@ -7804,6 +7804,7 @@ static int ntop_interface_emit_alert(lua_State* vm) {
   char *alert_json;
   AlertsManager *am;
   int ret, periodicity = 0;
+  char *alert_subtype = (char*)"";
   bool ignore_disabled = false, check_maximum = true;
   time_t when;
 
@@ -7830,14 +7831,14 @@ static int ntop_interface_emit_alert(lua_State* vm) {
   if(ntop_lua_check(vm, __FUNCTION__, 7, LUA_TSTRING) != CONST_LUA_OK) return(CONST_LUA_ERROR);
   alert_json = (char*)lua_tostring(vm, 7);
 
-  if(lua_type(vm, 8) == LUA_TBOOLEAN)
-    ignore_disabled = lua_toboolean(vm, 8);
+  if(lua_type(vm, 8) == LUA_TSTRING)
+    alert_subtype = (char *) lua_tostring(vm, 8);
 
   if((!ntop_interface)
      || ((am = ntop_interface->getAlertsManager()) == NULL))
     return(CONST_LUA_ERROR);
 
-  ret = am->emitAlert(when, periodicity, alert_type, alert_severity,
+  ret = am->emitAlert(when, periodicity, alert_type, alert_subtype, alert_severity,
     alert_entity, entity_value, alert_json, ignore_disabled, check_maximum);
 
   if(ret < 0)

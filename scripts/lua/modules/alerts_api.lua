@@ -60,7 +60,7 @@ function alerts:emit(entity_value, alert_message, when)
 
   return(interface.emitAlert(when, self.periodicity,
     alertType(self.type), alertSeverity(self.severity),
-    alertEntity(self.entity), entity_value, msg))
+    alertEntity(self.entity), entity_value, msg, self.subtype))
 end
 
 -- ##############################################
