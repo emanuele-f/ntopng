@@ -98,7 +98,7 @@ function alerts:emit(entity_value, alert_message, when)
     if(rv.success and rv.new_alert) then
       local action = ternary(self.periodicity, "engage", "store")
       local message = {
-        ifid = ifid,
+        ifid = interface.getId(),
         entity_type = self.entity_type_id,
         entity_value = entity_value,
         type = self.entity_type_id,

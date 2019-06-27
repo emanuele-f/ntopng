@@ -548,10 +548,17 @@ end
 
 -- #################################
 
+local function refreshAlerts(ifid)
+   ntop.delCache(string.format("ntopng.cache.alerts.ifid_%d.has_alerts", ifid))
+   ntop.delCache("ntopng.cache.update_alerts_stats_time")
+end
+
+-- #################################
+
 function deleteAlerts(what, options)
    local opts = getUnpagedAlertOptions(options or {})
    performAlertsQuery("DELETE", what, opts)
-   refreshAlerts()
+   refreshAlerts(interface.getId())
 end
 
 -- #################################
@@ -3242,7 +3249,7 @@ function flushAlertsData()
    end)
 
    ntop.setPref("ntopng.prefs.disable_alerts_generation", generation_toggle_backup)
-   refreshAlerts()
+   refreshAlerts(interface.getId())
 
    if(verbose) then io.write("[Alerts] Flush done\n") end
    interface.select(selected_interface)
@@ -3338,13 +3345,6 @@ function formatAlertNotification(notif, options)
    end
 
    return msg
-end
-
--- ##############################################
-
-local function refreshAlerts(ifid)
-   ntop.delCache(string.format("ntopng.cache.alerts.ifid_%d.has_alerts", ifid))
-   ntop.delCache("ntopng.cache.update_alerts_stats_time")
 end
 
 -- ##############################################
