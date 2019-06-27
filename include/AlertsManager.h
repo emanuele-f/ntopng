@@ -39,6 +39,7 @@ class AlertsManager : protected StoreManager {
       bool * const is_existing, u_int64_t * const cur_rowid) const;
   int updateExistingAlert(u_int64_t rowid, time_t new_timestamp_end, char * const query_buf, ssize_t query_buf_len) const;
   void markForMakeRoom(bool on_flows);
+  bool incHostTotalAlerts(const char *hostkey);
 
   bool notifyAlert(AlertEntity alert_entity, const char *alert_entity_value,
 		   AlertType alert_type, AlertLevel alert_severity, const char *alert_json,

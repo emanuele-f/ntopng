@@ -311,18 +311,46 @@ void AlertsManager::markForMakeRoom(bool on_flows) {
 
 /* **************************************************** */
 
+bool AlertsManager::incHostTotalAlerts(const char *hostkey) {
+/* Need to refresh the total alerts of the host */
+  Host *host;
+  u_int16_t vlan_id;
+  char ipbuf[64];
+  const char *at, *host_ip;
+  bool rv = false;
+
+  if((at = strchr(hostkey, '@'))) {
+    vlan_id = atoi(at + 1);
+    snprintf(ipbuf, min((uint)sizeof(ipbuf)-1, (uint)(at-hostkey+1)), "%s", hostkey);
+    host_ip = ipbuf;
+  } else {
+    vlan_id = 0;
+    host_ip = hostkey;
+  }
+
+  if((host = iface->getHost((char*)host_ip, vlan_id))) {
+    host->incTotalAlerts();
+    rv = true;
+  } else
+    ntop->getTrace()->traceEvent(TRACE_INFO, "Could not find host %s (ip=%s, vlan=%u)", hostkey, host_ip, vlan_id);
+
+  return(rv);
+}
+
+/* **************************************************** */
+
 /* NOTE: do not call this from C, use alert queues in LUA */
 int AlertsManager::emitAlert(time_t when, int periodicity, AlertType alert_type, const char *subtype,
       AlertLevel alert_severity, AlertEntity alert_entity, const char *alert_entity_value,
       const char *alert_json, bool *new_alert,
       bool ignore_disabled, bool check_maximum) {
   *new_alert = false;
+  int rc = 0;
 
   if(ignore_disabled || !ntop->getPrefs()->are_alerts_disabled()) {
     char query[STORE_MANAGER_MAX_QUERY];
     sqlite3_stmt *stmt = NULL;
     u_int64_t cur_rowid;
-    int rc = 0;
     bool is_existing = false;
 
     if(!store_initialized || !store_opened)
@@ -378,15 +406,18 @@ int AlertsManager::emitAlert(time_t when, int periodicity, AlertType alert_type,
       }
     }
 
+    /* Success */
     rc = 0;
+
+    if(*new_alert && (alert_entity == alert_entity_host))
+      incHostTotalAlerts(alert_entity_value);
 
  out:
     if(stmt) sqlite3_finalize(stmt);
     m.unlock(__FILE__, __LINE__);
+  }
 
-    return rc;
-  } else
-    return 0;
+  return(rc);
 }
 
 /* **************************************************** */

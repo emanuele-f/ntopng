@@ -828,6 +828,9 @@ bool NetworkInterface::walker(u_int32_t *begin_slot,
 			      void *user_data) {
   bool ret = false;
 
+  if(id == SYSTEM_INTERFACE_ID)
+    return(false);
+
   switch(wtype) {
   case walker_hosts:
     ret = hosts_hash->walk(begin_slot, walk_all, walker, user_data);

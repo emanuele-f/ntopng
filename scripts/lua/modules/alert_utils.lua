@@ -1791,7 +1791,7 @@ function getCurrentStatus() {
 	 {
 	    title: "]]print(i18n("show_alerts.alert_count"))print[[",
 	    field: "column_count",
-            hidden: ]] print(ternary(t["status"] == "engaged", "true", "false")) print[[,
+            hidden: ]] print(ternary(t["status"] ~= "historical-flows", "true", "false")) print[[,
             sortable: true,
 	    css: {
 	       textAlign: 'center'
@@ -3366,9 +3366,6 @@ end
 
 local UPDATE_ALERT_STATS_FREQUENCY = 30
 
---~ h->setNumAlerts(num_alerts);
---~ if(engage) h->incTotalAlerts();
-
 -- NOTE: this is executed in a system VM, with no interfaces references
 local function updateAlertStats(now)
    local last_run = tonumber(ntop.getCache("ntopng.cache.update_alerts_stats_time"))
@@ -3405,24 +3402,7 @@ local function updateAlertStats(now)
          for _, res in pairs(rv or {}) do
             hosts_to_update[res.alert_entity_val] = {
                num_engaged = tonumber(res.count),
-               inc_total = 0,
             }
-         end
-
-         -- Get the alerts generated since last run
-         local rv = interface.queryAlertsRaw("select alert_entity_val, COUNT(*) as count",
-            "where alert_entity=" .. alertEntity("host") .. " AND alert_tstamp > ".. last_run ..
-            " AND alert_tstamp <= " .. now .." group by alert_entity_val")
-
-         for _, res in pairs(rv or {}) do
-            local host = res.alert_entity_val
-
-            if(hosts_to_update[host] == nil) then
-               hosts_to_update[res.alert_entity_val] = {
-                  num_engaged = 0,
-                  inc_total = tonumber(res.count),
-               }
-            end
          end
 
          -- Get the released alerts since last run
@@ -3436,7 +3416,7 @@ local function updateAlertStats(now)
 
                   if(hosts_to_update[host] == nil) then
                      -- Must refresh this host as well
-                     hosts_to_update[host] = {num_engaged = 0, inc_total = 0}
+                     hosts_to_update[host] = {num_engaged = 0}
                   end
                end
 
@@ -3450,7 +3430,7 @@ local function updateAlertStats(now)
 
          -- Refresh the host counters
          for host, num_alerts in pairs(hosts_to_update) do
-            interface.setHostAlerts(host, num_alerts.num_engaged, num_alerts.inc_total)
+            interface.setHostAlerts(host, num_alerts.num_engaged)
          end
       end
 

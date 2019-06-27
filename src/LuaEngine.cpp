@@ -7856,7 +7856,7 @@ static int ntop_interface_emit_alert(lua_State* vm) {
 
 static int ntop_interface_set_host_alerts(lua_State* vm) {
   u_int16_t vlan_id = 0;
-  u_int32_t engaged_alerts, inc_total_alerts;
+  u_int32_t engaged_alerts;
   char buf[64], *host_ip;
   Host *h;
   NetworkInterface *ntop_interface = getCurrentInterface(vm);
@@ -7869,14 +7869,10 @@ static int ntop_interface_set_host_alerts(lua_State* vm) {
   if(ntop_lua_check(vm, __FUNCTION__, 2, LUA_TNUMBER) != CONST_LUA_OK) return(CONST_LUA_ERROR);
   engaged_alerts = (u_int32_t) lua_tointeger(vm, 2);
 
-  if(ntop_lua_check(vm, __FUNCTION__, 3, LUA_TNUMBER) != CONST_LUA_OK) return(CONST_LUA_ERROR);
-  inc_total_alerts = (u_int32_t) lua_tointeger(vm, 3);
-
   if((!ntop_interface) || ((h = ntop_interface->findHostByIP(get_allowed_nets(vm), host_ip, vlan_id)) == NULL))
     lua_pushboolean(vm, false);
   else {
     h->setNumAlerts(engaged_alerts);
-    h->incTotalAlerts(inc_total_alerts);
     lua_pushboolean(vm, true);
   }
 

@@ -262,7 +262,7 @@ class Host : public GenericHashEntry {
   virtual bool setRemoteToRemoteAlerts() { return(false); };
   inline void checkPointHostTalker(lua_State *vm, bool saveCheckpoint) { stats->checkPointHostTalker(vm, saveCheckpoint); }
   virtual void incrVisitedWebSite(char *hostname) {};
-  inline void incTotalAlerts(u_int32_t num=0)     { stats->incTotalAlerts(num); }
+  inline void incTotalAlerts()            { stats->incTotalAlerts(); }
   inline u_int32_t getTotalAlerts()       { return(stats->getTotalAlerts()); }
   virtual u_int32_t getActiveHTTPHosts()  { return(0); };
   inline u_int32_t getNumOutgoingFlows()  { return(num_active_flows_as_client.get()); }
