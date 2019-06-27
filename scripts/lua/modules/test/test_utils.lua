@@ -5,7 +5,7 @@
 local test_utils = {}
 
 local alerts = require("alerts_api")
-local test_failed_alert = alerts.newAlert({
+local test_failed_alert = alerts:newAlert({
   type = "test_failed",
   entity = "test"
   severity = "error",

@@ -27,6 +27,10 @@ local function makeAlertId(alert_type, subtype, periodicity, alert_entity)
   return(string.format("%s_%s_%s_%s", alert_type, subtype or "", periodicity or "", alert_entity))
 end
 
+function alerts:getId()
+  return(makeAlertId(self.type_id, self.subtype, self.periodicity, self.entity_type_id))
+end
+
 -- ##############################################
 
 local function alertErrorTraceback(msg)
@@ -37,6 +41,11 @@ end
 -- ##############################################
 
 function alerts:newAlert(metadata)
+  if(metadata == nil) then
+    alertErrorTraceback("alerts:newAlert() missing argument")
+    return(nil)
+  end
+
   local obj = table.clone(metadata)
 
   if type(obj.periodicity) == "string" then
@@ -44,6 +53,7 @@ function alerts:newAlert(metadata)
       obj.periodicity = str_2_periodicity[obj.periodicity]
     else
       alertErrorTraceback("unknown periodicity '".. obj.periodicity .."'")
+      return(nil)
     end
   end
 
@@ -107,15 +117,41 @@ end
 
 -- ##############################################
 
-function alerts.getFormater(metadata)
+function alerts.parseAlert(metadata)
   local alert_id = makeAlertId(metadata.alert_type, metadata.alert_subtype, metadata.alert_periodicity, metadata.alert_entity)
-  local alert = known_alerts[alert_id]
 
-  if alert then
-    return(alert.formatter)
+  if known_alerts[alert_id] then
+    return(known_alerts[alert_id])
   end
 
-  return(nil)
+  -- new alert
+  return(alerts:newAlert({
+    entity = alertEntityRaw(metadata.alert_entity),
+    type = alertTypeRaw(metadata.alert_type),
+    severity = alertSeverityRaw(metadata.alert_severity),
+    periodicity = tonumber(metadata.alert_periodicity),
+    subtype = metadata.alert_subtype,
+  }))
+end
+
+-- ##############################################
+
+-- TODO unify alerts and metadataications format
+function alerts.parseNotification(metadata)
+  local alert_id = makeAlertId(alertType(metadata.type), metadata.alert_subtype, metadata.alert_periodicity, alertEntity(metadata.entity_type))
+
+  if known_alerts[alert_id] then
+    return(known_alerts[alert_id])
+  end
+
+  -- new alert
+  return(alerts:newAlert({
+    entity = metadata.entity_type,
+    type = metadata.type,
+    severity = metadata.severity,
+    periodicity = metadata.periodicity,
+    subtype = metadata.subtype,
+  }))
 end
 
 -- ##############################################

@@ -40,7 +40,7 @@ function tracker.log(f_name, f_args)
   local old_iface = ifid
   interface.select(getSystemInterfaceId())
 
-  local alert = alerts.newAlert({
+  local alert = alerts:newAlert({
     type = "alert_user_activity",
     entity = "user",
     severity = "info",

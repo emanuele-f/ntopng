@@ -63,15 +63,15 @@ local function formatAlertRecord(alert_entity, record)
    elseif alert_entity == "User" then
       column_msg = formatRawUserActivity(record, record["alert_json"])
    else
-      local formatter = alerts_api.getFormater(record)
+      local alert_obj = alerts_api.parseAlert(record)
 
-      if(formatter ~= nil) then
+      if(alert_obj.formatter ~= nil) then
         local msg = record["alert_json"]
 
         if(string.sub(msg, 1, 1) == "{") then
           msg = json.decode(msg)
         end
-        column_msg = formatter(msg, record)
+        column_msg = alert_obj.formatter(msg, record)
       end
    end
 
