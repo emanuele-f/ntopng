@@ -7795,6 +7795,7 @@ static int ntop_add_local_network(lua_State* vm) {
 
 /* ****************************************** */
 
+/* NOTE: do not call directly, use alerts_api instead */
 static int ntop_interface_emit_alert(lua_State* vm) {
   NetworkInterface *ntop_interface = getCurrentInterface(vm);
   char *entity_value;
@@ -7805,7 +7806,7 @@ static int ntop_interface_emit_alert(lua_State* vm) {
   AlertsManager *am;
   int ret, periodicity = 0;
   char *alert_subtype = (char*)"";
-  bool ignore_disabled = false, check_maximum = true;
+  bool ignore_disabled = false, check_maximum = true, is_new_alert;
   time_t when;
 
   ntop->getTrace()->traceEvent(TRACE_DEBUG, "%s() called", __FUNCTION__);
@@ -7839,13 +7840,16 @@ static int ntop_interface_emit_alert(lua_State* vm) {
     return(CONST_LUA_ERROR);
 
   ret = am->emitAlert(when, periodicity, alert_type, alert_subtype, alert_severity,
-    alert_entity, entity_value, alert_json, ignore_disabled, check_maximum);
+    alert_entity, entity_value, alert_json, &is_new_alert, ignore_disabled, check_maximum);
 
   if(ret < 0)
     ntop->getTrace()->traceEvent(TRACE_ERROR, "emitAlert failed with code %d", ret);
 
-  lua_pushboolean(vm, ret >= 0);
-  return CONST_LUA_OK;
+  lua_newtable(vm);
+  lua_push_bool_table_entry(vm, "success", (ret >= 0));
+  lua_push_bool_table_entry(vm, "new_alert", is_new_alert);
+
+  return(CONST_LUA_OK);
 }
 
 /* ****************************************** */

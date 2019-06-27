@@ -4,9 +4,15 @@
 
 local test_utils = {}
 
+local alerts = require("alerts_api")
+local test_failed_alert = alerts.newAlert({
+  type = "test_failed",
+  entity = "test"
+  severity = "error",
+})
+
 local function test_error(msg)
-  interface.emitAlert(os.time(), 0, alertType("test_failed"), "",
-      alertSeverity("error"), alertEntity("test"), "test", msg)
+  test_failed_alert:emit("test", msg)
 end
 
 local function test_assert(cond, error_msg)

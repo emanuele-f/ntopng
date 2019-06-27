@@ -28,6 +28,7 @@ check_broadcast_domain_too_large_alerts()
 check_process_alerts()
 check_outside_dhcp_range_alerts()
 check_periodic_activities_alerts()
+check_login_alerts()
 callback_utils.uploadTSdata(deadline)
 lists_utils.checkReloadLists()
 

@@ -311,15 +311,19 @@ void AlertsManager::markForMakeRoom(bool on_flows) {
 
 /* **************************************************** */
 
+/* NOTE: do not call this from C, use alert queues in LUA */
 int AlertsManager::emitAlert(time_t when, int periodicity, AlertType alert_type, const char *subtype,
       AlertLevel alert_severity, AlertEntity alert_entity, const char *alert_entity_value,
-      const char *alert_json, bool ignore_disabled, bool check_maximum) {
+      const char *alert_json, bool *new_alert,
+      bool ignore_disabled, bool check_maximum) {
+  *new_alert = false;
+
   if(ignore_disabled || !ntop->getPrefs()->are_alerts_disabled()) {
     char query[STORE_MANAGER_MAX_QUERY];
     sqlite3_stmt *stmt = NULL;
     u_int64_t cur_rowid;
     int rc = 0;
-    bool is_existing;
+    bool is_existing = false;
 
     if(!store_initialized || !store_opened)
       return -1;
@@ -328,15 +332,19 @@ int AlertsManager::emitAlert(time_t when, int periodicity, AlertType alert_type,
 
     m.lock(__FILE__, __LINE__);
 
-    /* Check if this alert already exists ...*/
-    if((rc = isAlertExisting(when, alert_type, subtype, periodicity, alert_entity,
-        alert_entity_value, query, sizeof(query), &is_existing, &cur_rowid)))
-      goto out;
+    if(periodicity > 0) {
+      /* Check if this alert already exists ...*/
+      if((rc = isAlertExisting(when, alert_type, subtype, periodicity, alert_entity,
+          alert_entity_value, query, sizeof(query), &is_existing, &cur_rowid)))
+        goto out;
+    }
 
     if(is_existing) { /* Already existing record found */
       if((rc = updateExistingAlert(cur_rowid, when, query, sizeof(query))))
         goto out;
     } else {
+      *new_alert = true;
+
       /* This alert is being engaged/stored */
       snprintf(query, sizeof(query),
 	       "INSERT INTO %s "
@@ -376,10 +384,6 @@ int AlertsManager::emitAlert(time_t when, int periodicity, AlertType alert_type,
     if(stmt) sqlite3_finalize(stmt);
     m.unlock(__FILE__, __LINE__);
 
-    /* NOTE: the release event is generated from lua */
-    notifyAlert(alert_entity, alert_entity_value,
-		  alert_type, alert_severity, alert_json,
-		  NULL, NULL, (periodicity ? ALERT_ACTION_ENGAGE : ALERT_ACTION_STORE), when, NULL);
     return rc;
   } else
     return 0;

@@ -15,17 +15,17 @@ local alert_consts = require "alert_consts"
 local format_utils = require "format_utils"
 local telemetry_utils = require "telemetry_utils"
 local tracker = require "tracker"
-
-package.path = dirs.installdir .. "/scripts/lua/modules/alert_endpoints/?.lua;" .. package.path
+local alerts = require "alerts_api"
+local alert_endpoints = require "alert_endpoints_utils"
 
 local alert_process_queue = "ntopng.alert_process_queue"
 local host_remote_to_remote_alerts_queue = "ntopng.alert_host_remote_to_remote"
 local inactive_hosts_hash_key = "ntopng.prefs.alerts.ifid_%d.inactive_hosts_alerts"
+local alert_login_queue = "ntopng.alert_login_trace_queue"
 
 local shaper_utils = nil
 
 local CONST_DEFAULT_PACKETS_DROP_PERCENTAGE_ALERT = "5"
-local MAX_NUM_PER_MODULE_QUEUED_ALERTS = 1024 -- should match ALERTS_MANAGER_MAX_ENTITY_ALERTS on the AlertsManager
 
 if(ntop.isnEdge()) then
    package.path = dirs.installdir .. "/pro/scripts/lua/modules/?.lua;" .. package.path
@@ -246,9 +246,9 @@ local function getAlertReleaseQueryTime()
 end
 
 -- Apply a "engaged only" or "closed only" filter
-local function statusFilter(query, engaged)
+local function statusFilter(query, engaged, now)
   local comparison = ternary(engaged, ">=", "<")
-  local now = os.time()
+  now = now or os.time()
   local filter = string.format("%s %s %u", getAlertReleaseQueryTime(), comparison, now)
 
   if string.find(query, "group by") then
@@ -2312,7 +2312,15 @@ local function check_entity_alerts(ifid, entity_type, entity_value, working_stat
 
    local function generateAlert(info_arr, atype, akey, alert_info)
       local alert_msg, aseverity = formatAlertMessage(ifid, working_status.engine, entity_type, entity_value, atype, akey, entity_info, alert_info)
-      interface.emitAlert(now, working_status.interval, alertType(atype), alertSeverity(aseverity), alertEntity(entity_type), entity_value, alert_msg, akey)
+      local alert = alerts:newAlert({
+         entity = entity_type,
+         type = atype,
+         severity = aseverity,
+         subtype = akey,
+         periodicity = working_status.interval,
+      })
+
+      alert:emit(entity_value, alert_msg)
    end
 
    local function getAnomalyType(anomal_name)
@@ -2545,7 +2553,13 @@ local function check_inactive_hosts_alerts(ifid, working_status)
 
       if not host_info then
         local alert_msg, aseverity = formatAlertMessage(ifid, working_status.engine, entity_type, entity_value, atype, akey, entity_info, alert_info)
-        interface.emitAlert(os.time(), 0, alertType("inactivity"), aseverity, alertEntity("host"), entity_value, alert_msg)
+
+        local alert = alerts:newAlert({
+           entity = "host",
+           type = "inactivity",
+           severity = aseverity,
+        })
+        alert:emit(entity_value, alert_msg)
       end
    end
 end
@@ -2579,9 +2593,13 @@ end
 -- #################################
 
 local function emitAlertFromNotification(notification)
-  return(interface.emitAlert(notification.when, 0,
-    notification.type, notification.severity,
-    notification.entity_type, notification.entity_value, notification.message))
+  local alert = alerts:newAlert({
+     entity = alertEntityRaw(notification.entity_type),
+     type = alertTypeRaw(notification.type),
+     severity = alertSeverityRaw(notification.severity),
+  })
+
+  alert:emit(notification.entity_value, notification.message, notification.when)
 end
 
 -- #################################
@@ -2610,6 +2628,12 @@ end
 
 -- Global function
 function check_mac_ip_association_alerts()
+   local alert = alerts:newAlert({
+      entity = "mac",
+      type = "mac_ip_association_change",
+      severity = "warning",
+   })
+
    while(true) do
       local message = ntop.lpopCache("ntopng.alert_mac_ip_queue")
       local elems
@@ -2623,7 +2647,7 @@ function check_mac_ip_association_alerts()
       if elems ~= nil then
          --io.write(elems.ip.." ==> "..message.."[".. elems.ifname .."]\n")
          interface.select(elems.ifname)
-         interface.emitAlert(os.time(), 0, alertType("mac_ip_association_change"), alertSeverity("warning"), alertEntity("mac"), elems.new_mac, i18n("alert_messages.mac_ip_association_change",
+         alert:emit(elems.new_mac, i18n("alert_messages.mac_ip_association_change",
                   {device=name, ip=elems.ip,
                   old_mac=elems.old_mac, old_mac_url=getMacUrl(elems.old_mac),
                   new_mac=elems.new_mac, new_mac_url=getMacUrl(elems.new_mac)}))
@@ -2633,6 +2657,12 @@ end
 
 -- Global function
 function check_broadcast_domain_too_large_alerts()
+   local alert = alerts:newAlert({
+      entity = "interface",
+      type = "broadcast_domain_too_large",
+      severity = "warning",
+   })
+
    while(true) do
       local message = ntop.lpopCache("ntopng.alert_bcast_domain_too_large")
       local elems
@@ -2644,13 +2674,11 @@ function check_broadcast_domain_too_large_alerts()
       elems = json.decode(message)
 
       if elems ~= nil then
-	 local entity = alertEntity("interface")
 	 local entity_value = "iface_"..elems.ifid
 
 	 --io.write(elems.ip.." ==> "..message.."[".. elems.ifname .."]\n")
 	 interface.select(elems.ifname)
-   interface.emitAlert(os.time(), 0, alertType("broadcast_domain_too_large"),
-      alertSeverity("warning"), entity, entity_value, i18n("alert_messages.broadcast_domain_too_large",
+	 alert:emit(entity_value, i18n("alert_messages.broadcast_domain_too_large",
 				   {src_mac = elems.src_mac,
 				    src_mac_url = getMacUrl(elems.src_mac),
 				    dst_mac = elems.dst_mac,
@@ -2665,6 +2693,12 @@ end
 
 -- Global function
 function check_nfq_flushed_queue_alerts()
+   local alert = alerts:newAlert({
+      entity = "interface",
+      type = "nfq_flushed",
+      severity = "info",
+   })
+
    while(true) do
       local message = ntop.lpopCache("ntopng.alert_nfq_flushed_queue")
       local elems
@@ -2676,17 +2710,13 @@ function check_nfq_flushed_queue_alerts()
       elems = json.decode(message)
 
       if elems ~= nil then
-	 local entity = alertEntity("interface")
 	 local entity_value = "iface_"..elems.ifid
-	 local alert_type = alertType("nfq_flushed")
-	 local alert_severity = alertSeverity("info")
 
 	 -- tprint(elems)
          -- io.write(elems.ip.." ==> "..message.."[".. elems.ifname .."]\n")
 
          interface.select(elems.ifname)
-         interface.emitAlert(os.time(), 0, alert_type,
-            alert_severity, entity, entity_value, i18n("alert_messages.nfq_flushed",{
+         alert:emit(entity_value, i18n("alert_messages.nfq_flushed",{
                 name = elems.ifname, pct = elems.pct,
                 tot = elems.tot, dropped = elems.dropped,
                 url = ntop.getHttpPrefix().."/lua/if_stats.lua?ifid="..elems.ifid
@@ -2697,6 +2727,12 @@ end
 
 -- Global function
 function check_host_remote_to_remote_alerts()
+   local alert = alerts:newAlert({
+      entity = "host",
+      type = "remote_to_remote",
+      severity = "warning",
+   })
+
    while(true) do
       local message = ntop.lpopCache(host_remote_to_remote_alerts_queue)
       local elems
@@ -2719,14 +2755,19 @@ function check_host_remote_to_remote_alerts()
 
          interface.select(getInterfaceName(elems.ifid))
 
-         interface.emitAlert(os.time(), 0, alertType("remote_to_remote"),
-            alertSeverity("warning"), alertEntity("host"), entity_value, msg)
+         alert:emit(entity_value, msg)
       end
    end   
 end
 
 -- Global function
 function check_outside_dhcp_range_alerts()
+   local alert = alerts:newAlert({
+      entity = "host",
+      type = "ip_outsite_dhcp_range",
+      severity = "warning",
+   })
+
    while(true) do
       local message = ntop.lpopCache("ntopng.alert_outside_dhcp_range_queue")
       local elems
@@ -2755,14 +2796,19 @@ function check_outside_dhcp_range_alerts()
 	 })
 
          interface.select(getInterfaceName(elems.ifid))
-         interface.emitAlert(os.time(), 0, alertType("ip_outsite_dhcp_range"),
-            alertSeverity("warning"), alertEntity("host"), entity_value, msg)
+         alert:emit(entity_value, msg)
       end
    end
 end
 
 -- Global function
 function check_periodic_activities_alerts()
+  local alert = alerts:newAlert({
+     entity = "periodic_activity",
+     type = "slow_periodic_activity",
+     severity = "warning",
+  })
+
   while(true) do
     local message = ntop.lpopCache("ntopng.periodic_activity_queue")
     local elems
@@ -2792,10 +2838,42 @@ function check_periodic_activities_alerts()
       })
 
       interface.select(elems.ifname)
-      interface.emitAlert(os.time(), 0, alertType("slow_periodic_activity"),
-            alertSeverity("warning"), alertEntity("periodic_activity"), elems.path, msg)
+      alert:emit(elems.path, msg)
     end
   end
+end
+
+-- Global function
+function check_login_alerts()
+   while(true) do
+      local message = ntop.lpopCache(alert_login_queue)
+      local elems
+      
+      if((message == nil) or (message == "")) then
+	 break
+      end
+
+      if(verbose) then print(message.."\n") end
+      
+      local decoded = json.decode(message)
+
+      if(decoded == nil) then
+	 if(verbose) then io.write("JSON Decoding error: "..message.."\n") end
+      else
+        interface.select(getSystemInterfaceId())
+
+        local alert = alerts:newAlert({
+          entity = "user",
+          type = "alert_user_activity",
+          severity = ternary(decoded.status == "authorized", "info", "warning"),
+          subtype = decoded.authorized,
+        })
+
+        local user = decoded.user
+        decoded.user = nil -- no need to serialize this
+        alert:emit(user, decoded)
+      end
+   end
 end
 
 -- Global function
@@ -2832,6 +2910,21 @@ local function check_macs_alerts(ifid, working_status)
    local alert_new_devices_enabled = ntop.getPref("ntopng.prefs.alerts.device_first_seen_alert") == "1"
    local alert_device_connection_enabled = ntop.getPref("ntopng.prefs.alerts.device_connection_alert") == "1"
    local new_active_devices = {}
+   local new_device_alert = alerts:newAlert({
+      entity = "mac",
+      type = "new_device",
+      severity = "warning",
+    })
+   local device_connection_alert = alerts:newAlert({
+      entity = "mac",
+      type = "device_connection",
+      severity = "info",
+    })
+   local device_disconnection_alert = alerts:newAlert({
+      entity = "mac",
+      type = "device_disconnection",
+      severity = "info",
+    })
 
    callback_utils.foreachDevice(getInterfaceName(ifid), nil, function(devicename, devicestats, devicebase)
 				   -- note: location is always lan when capturing from a local interface
@@ -2845,9 +2938,8 @@ local function check_macs_alerts(ifid, working_status)
 					 if alert_new_devices_enabled then
 					    local name = getDeviceName(mac)
 					    setSavedDeviceName(mac, name)
-              interface.emitAlert(os.time(), 0, alertType("new_device"),
-                alertSeverity("warning"), alertEntity("mac"), mac,
-                i18n("alert_messages.a_new_device_has_connected", {device=name, url=getMacUrl(mac)}))
+              
+              new_device_alert:emit(mac, i18n("alert_messages.a_new_device_has_connected", {device=name, url=getMacUrl(mac)}))
 					 end
 				      end
 
@@ -2858,9 +2950,7 @@ local function check_macs_alerts(ifid, working_status)
 					 if alert_device_connection_enabled then
 					    local name = getDeviceName(mac)
 					    setSavedDeviceName(mac, name)
-              interface.emitAlert(os.time(), 0, alertType("device_connection"),
-                alertSeverity("info"), alertEntity("mac"), mac,
-                i18n("alert_messages.device_has_connected", {device=name, url=getMacUrl(mac)}))
+              device_connection_alert:emit(mac, i18n("alert_messages.device_has_connected", {device=name, url=getMacUrl(mac)}))
 					 end
 				      else
 					 new_active_devices[mac] = 1
@@ -2875,9 +2965,7 @@ local function check_macs_alerts(ifid, working_status)
          ntop.delMembersCache(active_devices_set, mac)
 
          if alert_device_connection_enabled then
-            interface.emitAlert(os.time(), 0, alertType("device_disconnection"),
-                alertSeverity("info"), alertEntity("mac"), mac,
-                i18n("alert_messages.device_has_disconnected", {device=name, url=getMacUrl(mac)}))
+            device_disconnection_alert:emit(mac, i18n("alert_messages.device_has_disconnected", {device=name, url=getMacUrl(mac)}))
          end
       end
    end
@@ -2926,6 +3014,29 @@ function check_host_pools_alerts(ifid, working_status)
    local quota_exceeded_pools = {}
    local now_active_pools = {}
 
+   local quota_exceeded_alert_time = alerts:newAlert({
+      entity = "host_pool",
+      type = "quota_exceeded",
+      severity = "info",
+      subtype = "time_quota",
+   })
+   local quota_exceeded_alert_traffic = alerts:newAlert({
+      entity = "host_pool",
+      type = "quota_exceeded",
+      severity = "info",
+      subtype = "traffic_quota",
+   })
+   local pool_connection_alert = alerts:newAlert({
+      entity = "host_pool",
+      type = "host_pool_connection",
+      severity = "info",
+   })
+   local pool_disconnection_alert = alerts:newAlert({
+      entity = "host_pool",
+      type = "host_pool_disconnection",
+      severity = "info",
+   })
+
    -- Deserialize quota_exceeded_pools
    for pool, v in pairs(quota_exceeded_pools_values) do
       quota_exceeded_pools[pool] = {}
@@ -2963,9 +3074,7 @@ function check_host_pools_alerts(ifid, working_status)
 
 	       if alerts_on_quota_exceeded then
 		  if info.bytes_exceeded and not prev_exceeded[1] then
-         interface.emitAlert(os.time(), 0, alertType("quota_exceeded"),
-                alertSeverity("info"), alertEntity("host_pool"), tostring(pool),
-                i18n("alert_messages.subject_quota_exceeded", {
+         quota_exceeded_alert_traffic:emit(tostring(pool), i18n("alert_messages.subject_quota_exceeded", {
                   pool = host_pools_utils.getPoolName(ifid, pool),
                   url = getHostPoolUrl(pool),
                   subject = i18n("alert_messages.proto_bytes_quotas", {proto=proto}),
@@ -2974,9 +3083,7 @@ function check_host_pools_alerts(ifid, working_status)
 		  end
 
 		  if info.time_exceeded and not prev_exceeded[2] then
-         interface.emitAlert(os.time(), 0, alertType("quota_exceeded"),
-              alertSeverity("info"), alertEntity("host_pool"), tostring(pool),
-              i18n("alert_messages.subject_quota_exceeded", {
+         quota_exceeded_alert_time:emit(tostring(pool), i18n("alert_messages.subject_quota_exceeded", {
                 pool = host_pools_utils.getPoolName(ifid, pool),
                 url = getHostPoolUrl(pool),
                 subject = i18n("alert_messages.proto_time_quotas", {proto=proto}),
@@ -3015,8 +3122,7 @@ function check_host_pools_alerts(ifid, working_status)
 	       ntop.setMembersCache(active_pools_set, pool)
 
 	       if alert_pool_connection_enabled then
-          interface.emitAlert(os.time(), 0, alertType("host_pool_connection"),
-              alertSeverity("info"), alertEntity("host_pool"), tostring(pool),
+            pool_connection_alert:emit(tostring(pool),
               i18n("alert_messages.host_pool_has_connected",
                 {pool=host_pools_utils.getPoolName(ifid, pool), url=getHostPoolUrl(pool)}))
 	       end
@@ -3032,8 +3138,7 @@ function check_host_pools_alerts(ifid, working_status)
          ntop.delMembersCache(active_pools_set, pool)
 
          if alert_pool_connection_enabled then
-            interface.emitAlert(os.time(), 0, alertType("host_pool_disconnection"),
-              alertSeverity("info"), alertEntity("host_pool"), tostring(pool),
+            pool_disconnection_alert:emit(tostring(pool),
               i18n("alert_messages.host_pool_has_disconnected",
                 {pool=host_pools_utils.getPoolName(ifid, pool),
                 url=getHostPoolUrl(pool)}))
@@ -3169,89 +3274,6 @@ end
 --  - A [module] name must have a corresponding modules/[module]_utils.lua script
 --
 
--- NOTE: order is important as it defines evaluation order
-local ALERT_NOTIFICATION_MODULES = {
-   "custom", "nagios", "slack", "webhook"
-}
-
-if ntop.syslog then
-   table.insert(ALERT_NOTIFICATION_MODULES, 1, "syslog")
-end
-
-if ntop.sendMail then -- only if email support is available
-   table.insert(ALERT_NOTIFICATION_MODULES, 1, "email")
-end
-
-function getAlertNotificationModuleEnableKey(module_name, short)
-   if module_name == "syslog" and ntop.getPref("ntopng.prefs.alerts_syslog") ~= "" then
-      -- For backward compatibility
-      if short then
-	 return "alerts_syslog"
-      else
-	 return "ntopng.prefs.alerts_syslog"
-      end
-   end
-
-   local short_k = "alerts." .. module_name .. "_notifications_enabled"
-
-   if short then
-      return short_k
-   else
-      return "ntopng.prefs." .. short_k
-   end
-end
-
-function getAlertNotificationModuleSeverityKey(module_name, short)
-   local short_k = "alerts." .. module_name .. "_severity"
-
-   if short then
-      return short_k
-   else
-      return "ntopng.prefs." .. short_k
-   end
-end
-
-local function getEnabledAlertNotificationModules()
-   local notifications_enabled = ntop.getPref("ntopng.prefs.alerts.external_notifications_enabled")
-
-   if not notifications_enabled or hasAlertsDisabled() then
-      return {}
-   end
-
-   local enabled_modules = {}
-
-   for _, modname in ipairs(ALERT_NOTIFICATION_MODULES) do
-      local module_enabled = ntop.getPref(getAlertNotificationModuleEnableKey(modname))
-      local min_severity = ntop.getPref(getAlertNotificationModuleSeverityKey(modname))
-      local req_name = modname
-
-      if module_enabled == "1" then
-         local ok, _module = pcall(require, req_name)
-
-         if not ok then
-            traceError(TRACE_ERROR, TRACE_CONSOLE, "Error while importing alert notification module " .. req_name)
-
-            -- the traceback
-            io.write(_module)
-         else
-	    if isEmptyString(min_severity) then
-	       min_severity = _module.DEFAULT_SEVERITY or "warning"
-	    end
-
-            enabled_modules[#enabled_modules + 1] = {
-               name = modname,
-               severity = min_severity,
-               export_frequency = tonumber(_module.EXPORT_FREQUENCY) or 60,
-               export_queue = "ntopng.alerts.modules_notifications_queue." .. modname,
-               ["module"] = _module,
-            }
-         end
-      end
-   end
-
-   return enabled_modules
-end
-
 function alertNotificationToObject(alert_json)
    local notification = json.decode(alert_json)
 
@@ -3320,16 +3342,6 @@ end
 
 -- ##############################################
 
-local function dispatchNotification(modules, message, json_message)
-   for _, m in ipairs(modules) do
-      if message.severity >= alertSeverity(m.severity) then
-         ntop.rpushCache(m.export_queue, json_message, MAX_NUM_PER_MODULE_QUEUED_ALERTS)
-      end
-   end
-end
-
--- ##############################################
-
 local function refreshAlerts(ifid)
    ntop.delCache(string.format("ntopng.cache.alerts.ifid_%d.has_alerts", ifid))
    ntop.delCache("ntopng.cache.update_alerts_stats_time")
@@ -3388,7 +3400,7 @@ local function updateAlertStats(now)
 
          -- Get the active alerts per host
          local rv = interface.queryAlertsRaw("select alert_entity_val, COUNT(*) as count",
-            statusFilter("where alert_entity=" .. alertEntity("host") .. "", true) .. " group by alert_entity_val")
+            statusFilter("where alert_entity=" .. alertEntity("host") .. "", true, now) .. " group by alert_entity_val")
 
          for _, res in pairs(rv or {}) do
             hosts_to_update[res.alert_entity_val] = {
@@ -3415,11 +3427,9 @@ local function updateAlertStats(now)
 
          -- Get the released alerts since last run
          rv = interface.queryAlertsRaw("select *",
-            statusFilter("where ".. getAlertReleaseQueryTime() .. " >= " .. last_run, false) .. " group by alert_entity_val")
+            statusFilter("where ".. getAlertReleaseQueryTime() .. " >= " .. last_run, false, now) .. " group by alert_entity_val")
 
          if not table.empty(rv) then
-            local modules = getEnabledAlertNotificationModules()
-
             for _, alert in pairs(rv) do
                if tonumber(alert.alert_entity) == alertEntity("host") then
                   local host = alert.alert_entity_val
@@ -3434,7 +3444,7 @@ local function updateAlertStats(now)
                local message = alertToNotification(ifid, "release", alert)
 
                -- Dispatch
-               dispatchNotification(modules, message, json.encode(message))
+               alert_endpoints.dispatchNotification(message, json.encode(message))
             end
          end
 
@@ -3452,8 +3462,6 @@ end
 
 -- NOTE: this is executed in a system VM, with no interfaces references
 function processAlertNotifications(now, periodic_frequency, force_export)
-   local modules = getEnabledAlertNotificationModules()
-
    updateAlertStats(now)
 
    -- Get new alerts
@@ -3470,23 +3478,10 @@ function processAlertNotifications(now, periodic_frequency, force_export)
 
       local message = json.decode(json_message)
 
-      dispatchNotification(modules, message, json_message)
+      alert_endpoints.dispatchNotification(message, json_message)
    end
 
-   -- Process export notifications
-   for _, m in ipairs(modules) do
-      if force_export or ((now % m.export_frequency) < periodic_frequency) then
-
-         local rv = m.module.dequeueAlerts(m.export_queue)
-
-         if not rv.success then
-            local msg = rv.error_message or "Unknown Error"
-
-            -- TODO: generate alert
-            traceError(TRACE_ERROR, TRACE_CONSOLE, "Error while sending notifications via " .. m.name .. " module: " .. msg)
-         end
-      end
-   end
+   alert_endpoints.processNotifications(now, periodic_frequency)
 end
 
 -- ##############################################
