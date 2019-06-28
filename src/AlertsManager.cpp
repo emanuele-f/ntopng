@@ -101,6 +101,7 @@ int AlertsManager::openStore() {
 	   "alert_severity   INTEGER NOT NULL, "
 	   "alert_tstamp     INTEGER NOT NULL, "
 	   "alert_tstamp_end INTEGER DEFAULT NULL, "
+	   "alert_untriggered INTEGER DEFAULT 0, "
 	   "alert_json       TEXT DEFAULT NULL"
 	   ");"
 	   "CREATE INDEX IF NOT EXISTS t2i_type     ON %s(alert_type); "
@@ -110,10 +111,12 @@ int AlertsManager::openStore() {
 	   "CREATE INDEX IF NOT EXISTS t2i_severity ON %s(alert_severity); "
 	   "CREATE INDEX IF NOT EXISTS t2i_tstamp   ON %s(alert_tstamp); "
 	   "CREATE INDEX IF NOT EXISTS t2i_tstamp_e ON %s(alert_tstamp_end); "
+	   "CREATE INDEX IF NOT EXISTS t2i_engaged  ON %s(alert_tstamp_end, alert_periodicity, alert_untriggered); "
 	   "CREATE INDEX IF NOT EXISTS t2i_hash     ON %s(alert_type, alert_subtype, alert_periodicity, alert_entity, alert_entity_val); ",
 	   ALERTS_MANAGER_TABLE_NAME, ALERTS_MANAGER_TABLE_NAME, ALERTS_MANAGER_TABLE_NAME,
 	   ALERTS_MANAGER_TABLE_NAME, ALERTS_MANAGER_TABLE_NAME, ALERTS_MANAGER_TABLE_NAME,
-	   ALERTS_MANAGER_TABLE_NAME, ALERTS_MANAGER_TABLE_NAME, ALERTS_MANAGER_TABLE_NAME);
+	   ALERTS_MANAGER_TABLE_NAME, ALERTS_MANAGER_TABLE_NAME, ALERTS_MANAGER_TABLE_NAME,
+     ALERTS_MANAGER_TABLE_NAME);
   m.lock(__FILE__, __LINE__);
   rc = exec_query(create_query, NULL, NULL);
   if(rc == SQLITE_ERROR) ntop->getTrace()->traceEvent(TRACE_ERROR, "SQL Error: %s", sqlite3_errmsg(db));
@@ -765,7 +768,7 @@ int AlertsManager::queryAlertsRaw(lua_State *vm, const char *selection,
 	     table_name ? table_name : (char*)"",
 	     clauses ? clauses : (char*)"");
 
-    // ntop->getTrace()->traceEvent(TRACE_NORMAL, "Going to execute: %s", query);
+    ntop->getTrace()->traceEvent(TRACE_DEBUG, "queryAlertsRaw: %s", query);
 
     m.lock(__FILE__, __LINE__);
 

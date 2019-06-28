@@ -246,18 +246,28 @@ local function getAlertReleaseQueryTime()
 end
 
 -- Apply a "engaged only" or "closed only" filter
-local function statusFilter(query, engaged, now)
+function statusFilter(query, engaged, now)
   local comparison = ternary(engaged, ">=", "<")
   now = now or os.time()
   local filter = string.format("%s %s %u", getAlertReleaseQueryTime(), comparison, now)
 
-  if string.find(query, "group by") then
-    -- put before
-    return(string.format("WHERE %s %s", filter, query))
-  else
-    -- put after
-    return(string.format("%s AND %s", query, filter))
+  local group_by_pos = string.find(query, "group by") or string.find(query, "GROUP BY")
+  local prefix_part = query
+  local suffix_part = ""
+
+  if(group_by_pos ~= nil) then
+    prefix_part = string.sub(query, 1, group_by_pos-2)
+    suffix_part = string.sub(query, group_by_pos)
   end
+  local where_pos = string.find(prefix_part, "where") or string.find(prefix_part, "WHERE")
+
+  if(where_pos == nil) then
+    prefix_part = "WHERE"
+  else
+    prefix_part = prefix_part .. " AND"
+  end
+
+  return(string.format("%s %s %s", prefix_part, filter, suffix_part))
 end
 
 -- ##############################################################################
