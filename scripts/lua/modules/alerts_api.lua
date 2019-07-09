@@ -364,14 +364,14 @@ end
 -- type_info building functions
 -- ##############################################
 
-function alerts.thresholdCrossType(granularity, metric, value, operator, edge)
+function alerts.thresholdCrossType(granularity, metric, value, operator, threshold)
   local res = {
     alert_type = alert_consts.alert_types.threshold_cross,
     alert_subtype = string.format("%s_%s", granularity, metric),
     alert_granularity = alert_consts.alerts_granularities.min,
     alert_type_params = {
-      metric = metric,
-      value = value, operator = operator, edge = edge
+      metric = metric, value = value,
+      operator = operator, threshold = threshold,
     }
   }
   --~ return {

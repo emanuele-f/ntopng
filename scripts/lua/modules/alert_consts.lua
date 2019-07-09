@@ -69,18 +69,64 @@ end
 
 -- ##############################################
 
-local function formatThresholdCross(ifid, engine, entity_type, entity_value, entity_info, alert_key, threshold_info)
-   if threshold_info.metric then
-      local info = alert_consts.alert_functions_info[threshold_info.metric]
-      local label = info and string.lower(info.label) or threshold_info.metric
-      local value = info and info.fmt(threshold_info.value) or threshold_info.value
-      local edge = info and info.fmt(threshold_info.edge) or threshold_info.edge
+--
+-- This function should be updated whenever a new alert entity type is available.
+-- If entity_info is nil, then no links will be provided.
+--
+local function formatAlertEntity(ifid, entity_type, entity_value, entity_info)
+   require "flow_utils"
+   local value
+   local epoch_begin, epoch_end = getAlertTimeBounds({alert_tstamp = os.time()})
 
-      return alertEngineLabel(engine).." <b>".. label .."</b> crossed by "..formatAlertEntity(ifid, entity_type, entity_value, entity_info)..
-	 " ["..value.." &"..(threshold_info.operator).."; "..edge.."]"
+   if entity_type == "host" then
+      local host_info = hostkey2hostinfo(entity_value)
+      value = resolveAddress(host_info)
+
+      if host_info ~= nil then
+	 value = "<a href='"..ntop.getHttpPrefix().."/lua/host_details.lua?ifid="..ifid..
+	    "&host="..hostinfo2hostkey(host_info).."&page=historical&epoch_begin="..
+	    epoch_begin .."&epoch_end=".. epoch_end .."'>"..value.."</a>"
+      end
+   elseif entity_type == "interface" then
+      value = getInterfaceName(ifid)
+
+      if entity_info ~= nil then
+	 value = "<a href='"..ntop.getHttpPrefix().."/lua/if_stats.lua?ifid="..ifid..
+	  "&page=historical&epoch_begin="..epoch_begin .."&epoch_end=".. epoch_end ..
+	  "'>"..value.."</a>"
+      end
+   elseif entity_type == "network" then
+      value = getLocalNetworkAlias(hostkey2hostinfo(entity_value)["host"])
+
+      if entity_info ~= nil then
+	 value = "<a href='"..ntop.getHttpPrefix().."/lua/network_details.lua?network="..
+	 (entity_info.network_id).."&page=historical&epoch_begin=".. epoch_begin
+	 .."&epoch_end=".. epoch_end .."'>" ..value.."</a>"
+      end
+   else
+      -- fallback
+      value = entity_value
    end
 
-   return ""
+   -- try to get a localized message
+   local localized = i18n("alert_messages."..entity_type.."_entity", {entity_value=value})
+
+   if localized ~= nil then
+      return localized
+   else
+      -- fallback
+      return entity_type.." "..value
+   end
+end
+
+-- ##############################################
+
+local function formatThresholdCross(ifid, alert, threshold_info)
+  local entity = formatAlertEntity(ifid, alertEntityRaw(alert["alert_entity"]), alert["alert_entity_val"])
+  local engine_label = alertEngineLabel(alertEngine(sec2granularity(alert["alert_periodicity"])))
+
+  return engine_label.." <b>".. threshold_info.metric .."</b> crossed by ".. entity ..
+    " ["..threshold_info.value.." &"..(threshold_info.operator).."; "..threshold_info.threshold.."]"
 end
 
 -- ##############################################
@@ -197,7 +243,7 @@ alert_consts.alert_types = {
     severity = alert_consts.alert_severities.error,
     i18n_title = "alerts_dashboard.tcp_syn_flood",
     icon = "fa-life-ring",
-    i18n_description = formatThresholdCross,
+    i18n_description = formatSynFlood,
   }, flows_flood = {
     alert_id = 1,
     severity = alert_consts.alert_severities.error,

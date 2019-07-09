@@ -94,6 +94,14 @@ function alertType(v)
   return(alert_consts.alert_types[v].alert_id)
 end
 
+function alertTypeDescription(v)
+  local alert_id = alertTypeRaw(v)
+
+  if(alert_id) then
+    return(alert_consts.alert_types[alert_id].i18n_description)
+  end
+end
+
 -- ##############################################
 
 -- Rename engine -> granulariy
@@ -135,6 +143,16 @@ end
 function granularity2id(granularity)
   -- TODO replace alertEngine
   return(alertEngine(granularity))
+end
+
+function sec2granularity(seconds)
+  seconds = tonumber(seconds)
+
+  for key, granularity_info in pairs(alert_consts.alerts_granularities) do
+    if(granularity_info.granularity_seconds == seconds) then
+      return(key)
+    end
+  end
 end
 
 -- ##############################################
@@ -655,58 +673,6 @@ function checkDeleteStoredAlerts()
          _GET["alert_severity"] = nil
          _GET["alert_type"] = nil
       end
-   end
-end
-
--- #################################
-
---
--- This function should be updated whenever a new alert entity type is available.
--- If entity_info is nil, then no links will be provided.
---
-local function formatAlertEntity(ifid, entity_type, entity_value, entity_info)
-   require "flow_utils"
-   local value
-   local epoch_begin, epoch_end = getAlertTimeBounds({alert_tstamp = os.time()})
-
-   if entity_type == "host" then
-      local host_info = hostkey2hostinfo(entity_value)
-      value = resolveAddress(host_info)
-
-      if host_info ~= nil then
-	 value = "<a href='"..ntop.getHttpPrefix().."/lua/host_details.lua?ifid="..ifid..
-	    "&host="..hostinfo2hostkey(host_info).."&page=historical&epoch_begin="..
-	    epoch_begin .."&epoch_end=".. epoch_end .."'>"..value.."</a>"
-      end
-   elseif entity_type == "interface" then
-      value = getInterfaceName(ifid)
-
-      if entity_info ~= nil then
-	 value = "<a href='"..ntop.getHttpPrefix().."/lua/if_stats.lua?ifid="..ifid..
-	  "&page=historical&epoch_begin="..epoch_begin .."&epoch_end=".. epoch_end ..
-	  "'>"..value.."</a>"
-      end
-   elseif entity_type == "network" then
-      value = getLocalNetworkAlias(hostkey2hostinfo(entity_value)["host"])
-
-      if entity_info ~= nil then
-	 value = "<a href='"..ntop.getHttpPrefix().."/lua/network_details.lua?network="..
-	 (entity_info.network_id).."&page=historical&epoch_begin=".. epoch_begin
-	 .."&epoch_end=".. epoch_end .."'>" ..value.."</a>"
-      end
-   else
-      -- fallback
-      value = entity_value
-   end
-
-   -- try to get a localized message
-   local localized = i18n("alert_messages."..entity_type.."_entity", {entity_value=value})
-
-   if localized ~= nil then
-      return localized
-   else
-      -- fallback
-      return entity_type.." "..value
    end
 end
 
