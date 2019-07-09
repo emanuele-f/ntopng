@@ -23,7 +23,7 @@ ntop.checkHostsAlertsMin()
 -- checks the current interface alerts
 interface.checkAlertsMin()
 
---alerts_api.trigger(alerts_api.hostAlertEntity("192.168.1.1", 0), alerts_api.thresholdCrossType("min", "bytes", 500, ">", 0))
+--alerts_api.new_trigger(alerts_api.hostAlertEntity("192.168.1.1", 0), alerts_api.thresholdCrossType("min", "bytes", 500, ">", 0))
 
 dofile(dirs.installdir .. "/scripts/lua/inc/footer.lua")
 

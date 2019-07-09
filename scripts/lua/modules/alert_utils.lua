@@ -32,26 +32,35 @@ if(ntop.isnEdge()) then
    shaper_utils = require("shaper_utils")
 end
 
+-- ##############################################
+
+function alertSeverityRaw(severity_id)
+  severity_id = tonumber(severity_id)
+
+  for key, severity_info in pairs(alert_consts.alert_severities) do
+    if(severity_info.severity_id == severity_id) then
+      return(key)
+    end
+  end
+end
+
 function alertSeverityLabel(v, nohtml)
-   local res = _handleArray(alert_consts.alert_severity_keys, tonumber(v))
-   if res ~= nil and nohtml == true then res = noHtml(res) end
-   return res
+   local severity_id = alertSeverityRaw(v)
+
+   if(severity_id) then
+      local severity_info = alert_consts.alert_severities[severity_id]
+      local title = i18n(severity_info.i18n_title) or severity_info.i18n_title
+
+      if(nohtml) then
+        return(title)
+      else
+        return(string.format('<i class="fa %s"></i> %s', severity_info.icon, title))
+      end
+   end
 end
 
 function alertSeverity(v)
-   local severity_table = {}
-   for i, t in ipairs(alert_consts.alert_severity_keys) do
-      severity_table[#severity_table + 1] = {t[2], t[3]}
-   end
-   return(_handleArray(severity_table, v))
-end
-
-function alertSeverityRaw(sev_idx)
-   sev_idx = sev_idx + 2 -- -1 and 0
-   if sev_idx <= #alert_consts.alert_severity_keys then
-      return alert_consts.alert_severity_keys[sev_idx][3]
-   end
-   return nil
+  return(alert_consts.alert_severities[v].severity_id)
 end
 
 -- ##############################################
@@ -126,17 +135,6 @@ end
 function granularity2id(granularity)
   -- TODO replace alertEngine
   return(alertEngine(granularity))
-end
-
--- ##############################################
-
-function alertSeverity(v)
-   local severitytable = {}
-
-   for i, t in ipairs(alert_consts.alert_severity_keys) do
-      severitytable[#severitytable + 1] = {t[2], t[3]}
-   end
-   return(_handleArray(severitytable, v))
 end
 
 -- ##############################################
@@ -1775,7 +1773,7 @@ function getCurrentStatus() {
 	 if(((isEmptyString(_GET["entity"])) and isEmptyString(_GET["epoch_begin"]) and isEmptyString(_GET["epoch_end"])) and (options.hide_filters ~= true))  then
 	    -- alert_consts.alert_severity_keys and alert_consts.alert_type_keys are defined in lua_utils
 	    local alert_severities = {}
-	    for _, s in pairs(alert_consts.alert_severity_keys) do alert_severities[#alert_severities +1 ] = s[3] end
+	    for s, _ in pairs(alert_consts.alert_severities) do alert_severities[#alert_severities +1 ] = s end
 	    local alert_types = {}
 	    for s, _ in pairs(alert_consts.alert_types) do alert_types[#alert_types +1 ] = s end
 

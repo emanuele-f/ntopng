@@ -6,6 +6,7 @@ package.path = dirs.installdir .. "/scripts/lua/modules/?.lua;" .. package.path
 
 local json = require("dkjson")
 local alert_endpoints = require("alert_endpoints_utils")
+local alert_consts = require("alert_consts")
 
 local alerts = {}
 
@@ -202,7 +203,7 @@ end
 -- ##############################################
 
 function get_alert_triggered_key(type_info)
-  return(string.format("%d_%s", type_info.alert_type.alert_type, type_info.alert_subtype or ""))
+  return(string.format("%d_%s", type_info.alert_type.alert_id, type_info.alert_subtype or ""))
 end
 
 -- ##############################################
@@ -216,14 +217,14 @@ end
 --! @return true on success, false otherwise
 function alerts.new_trigger(entity_info, type_info, when)
   when = when or os.time()
-  local granularity_sec = alert_type.alert_granularity and alert_type.alert_granularity.granularity_seconds or 0
-  local granularity_id = alert_type.alert_granularity and alert_type.alert_granularity.granularity_id or nil
+  local granularity_sec = type_info.alert_granularity and type_info.alert_granularity.granularity_seconds or 0
+  local granularity_id = type_info.alert_granularity and type_info.alert_granularity.granularity_id or nil
 
   if(granularity_id ~= nil) then
     local triggered = true
     local alert_key_name = get_alert_triggered_key(type_info)
 
-    if(entity_info.alert_entity.entity_id == alertEntity("host")) then
+    if((not table.empty(host)) and (entity_info.alert_entity.entity_id == alertEntity("host"))) then
       triggered = host.storeTriggeredAlert(alert_key_name, granularity_id)
     end
 
@@ -237,8 +238,8 @@ function alerts.new_trigger(entity_info, type_info, when)
   -- TODO put this into a queue
   local rv = interface.triggerAlert(when,
     granularity_sec,
-    type_info.alert_type.alert_type,
-    type_info.alert_type.severity,
+    type_info.alert_type.alert_id,
+    type_info.alert_type.severity.severity_id,
     entity_info.alert_entity.entity_id,
     entity_info.alert_entity_val,
     alert_json,
@@ -251,8 +252,8 @@ function alerts.new_trigger(entity_info, type_info, when)
       ifid = interface.getId(),
       entity_type = entity_info.alert_entity.entity_id,
       entity_value = entity_info.alert_entity_val,
-      type = type_info.alert_type.alert_type,
-      severity = type_info.alert_type.severity,
+      type = type_info.alert_type.alert_id,
+      severity = type_info.alert_type.severity.severity_id,
       message = alert_json,
       tstamp = when,
       action = action,
@@ -273,14 +274,14 @@ end
 --! @return true on success, false otherwise
 function alerts.new_release(entity_info, type_info)
   when = when or os.time()
-  local granularity_sec = alert_type.alert_granularity and alert_type.alert_granularity.granularity_seconds or 0
-  local granularity_id = alert_type.alert_granularity and alert_type.alert_granularity.granularity_id or nil
+  local granularity_sec = type_info.alert_granularity and type_info.alert_granularity.granularity_seconds or 0
+  local granularity_id = type_info.alert_granularity and type_info.alert_granularity.granularity_id or nil
 
   if(granularity_id ~= nil) then
     local released = true
     local alert_key_name = get_alert_triggered_key(type_info)
 
-    if(entity_info.alert_entity.entity_id == alertEntity("host")) then
+    if((not table.empty(host)) and (entity_info.alert_entity.entity_id == alertEntity("host"))) then
       triggered = host.releaseTriggeredAlert(alert_key_name, granularity_id)
     end
 
@@ -292,8 +293,8 @@ function alerts.new_release(entity_info, type_info)
   -- TODO put this into a queue
   local rv = interface.releaseAlert(when,
     granularity_sec,
-    type_info.alert_type.alert_type,
-    type_info.alert_type.severity,
+    type_info.alert_type.alert_id,
+    type_info.alert_type.severity.severity_id,
     entity_info.alert_entity.entity_id,
     entity_info.alert_entity_val,
     alert_json,
@@ -310,8 +311,8 @@ function alerts.new_release(entity_info, type_info)
           ifid = interface.getId(),
           entity_type = entity_info.alert_entity.entity_id,
           entity_value = entity_info.alert_entity_val,
-          type = type_info.alert_type.alert_type,
-          severity = type_info.alert_type.severity,
+          type = type_info.alert_type.alert_id,
+          severity = type_info.alert_type.severity.severity_id,
           message = alert_json,
           tstamp = when,
           action = "release",
@@ -331,7 +332,7 @@ end
 
 function alerts.hostAlertEntity(hostip, hostvlan)
   return {
-    alert_entity = alert_consts.alert_entity_keys.host,
+    alert_entity = alert_consts.alert_entities.host,
     alert_entity_val = hostinfo2hostkey({ip = hostip, vlan = hostvlan}, nil, true)
   }
 end
