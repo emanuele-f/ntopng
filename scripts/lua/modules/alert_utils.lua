@@ -76,7 +76,7 @@ function alertTypeLabel(v, nohtml)
       if(nohtml) then
         return(title)
       else
-        return(string.format('<i class="fa %s">%s</i>', type_info.icon, title))
+        return(string.format('<i class="fa %s"></i> %s', type_info.icon, title))
       end
    end
 end
@@ -106,7 +106,7 @@ function alertEngineLabel(v)
   local granularity_id = alertEngineRaw(v)
 
   if(granularity_id ~= nil) then
-    return(i18n(alert_consts.alerts_granularities[v].i18n_title))
+    return(i18n(alert_consts.alerts_granularities[granularity_id].i18n_title))
   end
 end
 
@@ -114,7 +114,7 @@ function alertEngineDescription(v)
   local granularity_id = alertEngineRaw(v)
 
   if(granularity_id ~= nil) then
-    return(i18n(alert_consts.alerts_granularities[v].i18n_description))
+    return(i18n(alert_consts.alerts_granularities[granularity_id].i18n_description))
   end
 end
 
@@ -156,7 +156,11 @@ function alertEntity(v)
 end
 
 function alertEntityLabel(v, nothml)
-   return(alert_consts.alert_entities[v].label)
+  local entity_id = alertEntityRaw(v)
+
+  if(entity_id) then
+    return(alert_consts.alert_entities[entity_id].label)
+  end
 end
 
 -- ##############################################################################
@@ -319,13 +323,7 @@ j = require("dkjson")
 require "persistence"
 
 function is_allowed_timespan(timespan)
-   for _, granularity in pairs(alert_consts.alerts_granularities) do
-      granularity = granularity[1]
-      if timespan == granularity then
-	 return true
-      end
-   end
-   return false
+   return(alert_consts.alerts_granularities[timespan] ~= nil)
 end
 
 function is_allowed_alarmable_metric(metric)
@@ -1220,10 +1218,9 @@ function drawAlertSourceSettings(entity_type, alert_source, delete_button_msg, d
       )
    end
 
-   for _,e in ipairs(alert_consts.alerts_granularities) do
-      local k = e[1]
-      local l = e[2]
-      local resolution = e[3]
+   for k, granularity in pairsByField(alert_consts.alerts_granularities, "granularity_id", asc) do
+      local l = i18n(granularity.i18n_title)
+      local resolution = granularity.granularity_seconds
 
       if (not options.remote_host) or resolution <= 60 then
 	 l = '<i class="fa fa-cog" aria-hidden="true"></i>&nbsp;'..l
@@ -1780,7 +1777,7 @@ function getCurrentStatus() {
 	    local alert_severities = {}
 	    for _, s in pairs(alert_consts.alert_severity_keys) do alert_severities[#alert_severities +1 ] = s[3] end
 	    local alert_types = {}
-	    for _, s in pairs(alert_consts.alert_type_keys) do alert_types[#alert_types +1 ] = s[3] end
+	    for s, _ in pairs(alert_consts.alert_types) do alert_types[#alert_types +1 ] = s end
 
 	    local a_type, a_severity = nil, nil
 	    if clicked == "1" then
@@ -2309,7 +2306,9 @@ function check_networks_alerts(ifid, working_status)
          goto continue
       end
 
-      local checkpoints = interface.checkpointNetwork(ifid, tonumber(sstats.network_id), working_status.checkpoint_id, "high") or {}
+      -- TODO
+      --~ local checkpoints = interface.checkpointNetwork(ifid, tonumber(sstats.network_id), working_status.checkpoint_id, "high") or {}
+      local checkpoints = {}
 
       local old_entity_info = checkpoints["previous"] and j.decode(checkpoints["previous"])
       local new_entity_info = checkpoints["current"] and j.decode(checkpoints["current"])
@@ -2389,7 +2388,6 @@ function newAlertsWorkingStatus(ifstats, granularity)
    local res = {
       granularity = granularity,
       engine = alertEngine(granularity),
-      checkpoint_id = checkpointId(granularity),
       ifid = ifstats.id,
       configured_thresholds = getConfiguredAlertsThresholds(ifstats.name, granularity),
       now = os.time(),
