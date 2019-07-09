@@ -223,7 +223,7 @@ function alerts.new_trigger(entity_info, type_info, when)
     local triggered = true
     local alert_key_name = get_alert_triggered_key(type_info)
 
-    if(entity_info.alert_entity == alertEntity("host")) then
+    if(entity_info.alert_entity.entity_id == alertEntity("host")) then
       triggered = host.storeTriggeredAlert(alert_key_name, granularity_id)
     end
 
@@ -239,7 +239,7 @@ function alerts.new_trigger(entity_info, type_info, when)
     granularity_sec,
     type_info.alert_type.alert_type,
     type_info.alert_type.severity,
-    entity_info.alert_entity,
+    entity_info.alert_entity.entity_id,
     entity_info.alert_entity_val,
     alert_json,
     type_info.alert_subtype or ""
@@ -249,7 +249,7 @@ function alerts.new_trigger(entity_info, type_info, when)
     local action = ternary((granularity_id ~= nil), "engaged", "stored")
     local message = {
       ifid = interface.getId(),
-      entity_type = entity_info.alert_entity,
+      entity_type = entity_info.alert_entity.entity_id,
       entity_value = entity_info.alert_entity_val,
       type = type_info.alert_type.alert_type,
       severity = type_info.alert_type.severity,
@@ -280,7 +280,7 @@ function alerts.new_release(entity_info, type_info)
     local released = true
     local alert_key_name = get_alert_triggered_key(type_info)
 
-    if(entity_info.alert_entity == alertEntity("host")) then
+    if(entity_info.alert_entity.entity_id == alertEntity("host")) then
       triggered = host.releaseTriggeredAlert(alert_key_name, granularity_id)
     end
 
@@ -294,7 +294,7 @@ function alerts.new_release(entity_info, type_info)
     granularity_sec,
     type_info.alert_type.alert_type,
     type_info.alert_type.severity,
-    entity_info.alert_entity,
+    entity_info.alert_entity.entity_id,
     entity_info.alert_entity_val,
     alert_json,
     type_info.alert_subtype or ""
@@ -308,7 +308,7 @@ function alerts.new_release(entity_info, type_info)
 
         local message = {
           ifid = interface.getId(),
-          entity_type = entity_info.alert_entity,
+          entity_type = entity_info.alert_entity.entity_id,
           entity_value = entity_info.alert_entity_val,
           type = type_info.alert_type.alert_type,
           severity = type_info.alert_type.severity,

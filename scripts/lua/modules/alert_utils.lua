@@ -57,7 +57,7 @@ end
 -- ##############################################
 
 function alertTypeRaw(type_id)
-   for key, type_info in pairs(alert_consts.alert_types) do
+  for key, type_info in pairs(alert_consts.alert_types) do
     if(type_info.alert_id == type_id) then
       return(key)
     end
@@ -85,25 +85,49 @@ end
 
 -- ##############################################
 
+-- Rename engine -> granulariy
+function alertEngineRaw(granularity_id)
+  for key, granularity_info in pairs(alert_consts.alerts_granularities) do
+    if(granularity_info.granularity_id == granularity_id) then
+      return(key)
+    end
+  end
+end
+
 function alertEngine(v)
-   local enginetable = {}
-   for i, t in ipairs(alert_consts.alert_engine_keys) do
-      enginetable[#enginetable + 1] = {t[2], t[3]}
-   end
-   return(_handleArray(enginetable, v))
+   return(alert_consts.alerts_granularities[v].granularity_id)
 end
 
 function alertEngineLabel(v)
-   return _handleArray(alert_consts.alert_engine_keys, tonumber(v))
+  local granularity_id = alertEngineRaw(v)
+
+  if(granularity_id ~= nil) then
+    return(i18n(alert_consts.alerts_granularities[v].i18n_title))
+  end
 end
 
-function alertEngineRaw(idx)
-   idx = idx + 1
-   if idx <= #alert_consts.alert_engine_keys then
-      return alert_consts.alert_engine_keys[idx][3]
-   end
-   return nil
+function alertEngineDescription(v)
+  local granularity_id = alertEngineRaw(v)
+
+  if(granularity_id ~= nil) then
+    return(i18n(alert_consts.alerts_granularities[v].i18n_description))
+  end
 end
+
+function granularity2sec(v)
+  return(alert_consts.alerts_granularities[v].granularity_seconds)
+end
+
+-- See NetworkInterface::checkHostsAlerts()
+function granularity2id(granularity)
+  local granularity_id = alertEngineRaw(v)
+
+  if(granularity_id ~= nil) then
+    return(alertEngine(granularity_id))
+  end
+end
+
+-- ##############################################
 
 function alertSeverity(v)
    local severitytable = {}
@@ -112,28 +136,24 @@ function alertSeverity(v)
       severitytable[#severitytable + 1] = {t[2], t[3]}
    end
    return(_handleArray(severitytable, v))
-en
+end
 
-function alertEntityLabel(v, nothml)
-   local res = _handleArray(alert_consts.alert_entity_keys, tonumber(v))
-   if res ~= nil and nohtml == true then res = noHtml(res) end
-   return res
+-- ##############################################
+
+function alertEntityRaw(entity_id)
+  for key, entity_info in pairs(alert_consts.alert_entities) do
+    if(entity_info.entity_id == entity_id) then
+      return(key)
+    end
+  end
 end
 
 function alertEntity(v)
-   local typetable = {}
-   for i, t in ipairs(alert_consts.alert_entity_keys) do
-      typetable[#typetable + 1] = {t[2], t[3]}
-   end
-   return(_handleArray(typetable, v))
+   return(alert_consts.alert_entities[v].entity_id)
 end
 
-function alertEntityRaw(entity_idx)
-   entity_idx = entity_idx + 1
-   if entity_idx <= #alert_consts.alert_entity_keys then
-      return alert_consts.alert_entity_keys[entity_idx][3]
-   end
-   return nil
+function alertEntityLabel(v, nothml)
+   return(alert_consts.alert_entities[v].label)
 end
 
 -- ##############################################################################
@@ -394,16 +414,6 @@ local function entity_threshold_crossed(granularity, old_table, new_table, thres
 end
 
 -- #################################
-
-function granularity2sec(g)
-   for _, granularity in pairs(alert_consts.alerts_granularity) do
-      if(granularity[1] == g) then
-	 return(granularity[3])
-      end
-   end
-
-   return(0)
-end
 
 function op2jsop(op)
    if op == "gt" then
@@ -3382,15 +3392,6 @@ end
 
 function notify_ntopng_stop()
    notify_ntopng_status(false)
-end
-
--- See NetworkInterface::checkHostsAlerts()
-function granularity2id(granularity)
-   if(granularity == "min")       then return(0)
-   elseif(granularity == "5mins") then return(1)
-   elseif(granularity == "hour")  then return(2)
-   elseif(granularity == "day")   then return(3)
-   end
 end
 
 -- DEBUG: uncomment this to test

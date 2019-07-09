@@ -408,35 +408,75 @@ alert_consts.alert_types = {
 -- See Utils::flowStatus2str to determine the alert_type for flow alerts
 
 -- Keep in sync with ntop_typedefs.h:AlertEntity
-alert_consts.alert_entity_keys = {
-   interface = { label = "Interface", entity_id = 0},
-   host = { "Host",            1, ""          },
-   { "Network",         2, "network"       },
-   { "SNMP device",     3, "snmp_device"   },
-   { "Flow",            4, "flow"          },
-   { "Device",          5, "mac"           },
-   { "Host Pool",       6, "host_pool"     },
-   { "Process",         7, "process"       },
-   { "User",            8, "user"          },
-   { "Influx DB",       9, "influx_db"     },
-   { "Test",           10, "test"          },
-   { "Category Lists", 11, "category_lists" },
-   { "PINGed host",    12, "pinged_host"   },
-   { "Periodi Activity", 13, "periodic_activity"   },
-}
-
-alerts_granularities = {
-  min = {
-    granularity_id = 0,
-    granularity_seconds = 60,
+alert_consts.alert_entities = {
+   interface = {
+    entity_id = 0,
+    label = "Interface",
+   }, host = {
+    entity_id = 1,
+    label = "Host",
+   }, network = {
+    entity_id = 2,
+    label = "Network",
+   }, snmp_device = {
+    entity_id = 3,
+    label = "SNMP device",
+   }, flow = {
+    entity_id = 4,
+    label = "Flow",
+   }, mac = {
+    entity_id = 5,
+    label = "Device",
+   }, host_pool = {
+    entity_id = 6,
+    label = "Host Pool",
+   }, process = {
+    entity_id = 7,
+    label = "Process",
+   }, user = {
+    entity_id = 8,
+    label = "User",
+   }, influx_db = {
+    entity_id = 9,
+    label = "Influx DB",
+   }, test = {
+    entity_id = 10,
+    label = "Test",
+   }, category_lists = {
+    entity_id = 11,
+    label = "Category Lists",
+   }, pinged_host = {
+    entity_id = 12,
+    label = "PINGed host",
+   }, periodic_activity = {
+    entity_id = 13,
+    label = "Periodic Activity",
   }
 }
 
-alert_consts.alert_engine_keys = {
-   {i18n("show_alerts.minute"),       0, "min"    },
-   {i18n("show_alerts.five_minutes"), 1, "5mins"  },
-   {i18n("show_alerts.hourly"),       2, "hour"   },
-   {i18n("show_alerts.daily"),        3, "day"    },
+-- Keep in sync with C
+alert_consts.alerts_granularities = {
+  ["min"] = {
+    granularity_id = 0,
+    granularity_seconds = 60,
+    i18n_title = "show_alerts.minute",
+    i18n_description = "alerts_thresholds_config.every_minute",
+  }, ["5mins"] = {
+    granularity_id = 1,
+    granularity_seconds = 300,
+    i18n_title = "show_alerts.hour",
+    i18n_description = "alerts_thresholds_config.every_5_minutes",
+  }, ["hour"] = {
+    granularity_id = 2,
+    granularity_seconds = 3600,
+    i18n_title = "show_alerts.hourly",
+    i18n_description = "alerts_thresholds_config.hourly",
+  }, ["day"] = {
+    granularity_id = 3,
+    granularity_seconds = 86400,
+    i18n_title = "show_alerts.daily",
+    i18n_description = "alerts_thresholds_config.daily",
+  }
 }
 
 -- Note: keep in sync with alarmable_metrics and alert_functions_infoes
@@ -462,13 +502,6 @@ alert_consts.network_alert_functions_description = {
 }
 
 -- ################################################################################
-
-alert_consts.alerts_granularity = {
-   { "min", i18n("alerts_thresholds_config.every_minute"), 60 },
-   { "5mins", i18n("alerts_thresholds_config.every_5_minutes"), 300 },
-   { "hour", i18n("alerts_thresholds_config.hourly"), 3600 },
-   { "day", i18n("alerts_thresholds_config.daily"), 86400 }
-}
 
 alert_consts.alarmable_metrics = {'bytes', 'dns', 'active', 'idle', 'packets', 'p2p', 'throughput',
 				  'ingress', 'egress', 'inner',
