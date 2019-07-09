@@ -57,6 +57,8 @@ end
 -- ##############################################
 
 function alertTypeRaw(type_id)
+  type_id = tonumber(type_id)
+
   for key, type_info in pairs(alert_consts.alert_types) do
     if(type_info.alert_id == type_id) then
       return(key)
@@ -87,6 +89,8 @@ end
 
 -- Rename engine -> granulariy
 function alertEngineRaw(granularity_id)
+  granularity_id = tonumber(granularity_id)
+
   for key, granularity_info in pairs(alert_consts.alerts_granularities) do
     if(granularity_info.granularity_id == granularity_id) then
       return(key)
@@ -120,11 +124,8 @@ end
 
 -- See NetworkInterface::checkHostsAlerts()
 function granularity2id(granularity)
-  local granularity_id = alertEngineRaw(v)
-
-  if(granularity_id ~= nil) then
-    return(alertEngine(granularity_id))
-  end
+  -- TODO replace alertEngine
+  return(alertEngine(granularity))
 end
 
 -- ##############################################
@@ -141,6 +142,8 @@ end
 -- ##############################################
 
 function alertEntityRaw(entity_id)
+  entity_id = tonumber(entity_id)
+
   for key, entity_info in pairs(alert_consts.alert_entities) do
     if(entity_info.entity_id == entity_id) then
       return(key)
@@ -316,7 +319,7 @@ j = require("dkjson")
 require "persistence"
 
 function is_allowed_timespan(timespan)
-   for _, granularity in pairs(alert_consts.alerts_granularity) do
+   for _, granularity in pairs(alert_consts.alerts_granularities) do
       granularity = granularity[1]
       if timespan == granularity then
 	 return true
@@ -1217,7 +1220,7 @@ function drawAlertSourceSettings(entity_type, alert_source, delete_button_msg, d
       )
    end
 
-   for _,e in ipairs(alert_consts.alerts_granularity) do
+   for _,e in ipairs(alert_consts.alerts_granularities) do
       local k = e[1]
       local l = e[2]
       local resolution = e[3]
