@@ -201,4 +201,166 @@ end
 
 -- ##############################################
 
+function get_alert_triggered_key(type_info)
+  return(string.format("%d_%s", type_info.alert_type.alert_type, type_info.alert_subtype or ""))
+end
+
+-- ##############################################
+
+-- TODO: remove the "new_" prefix and unify with other alerts
+
+--! @brief Trigger an alert of given type on the entity
+--! @param entity_info data returned by one of the entity_info building functions
+--! @param type_info data returned by one of the type_info building functions
+--! @param when (optional) the time when the release event occurs
+--! @return true on success, false otherwise
+function alerts.new_trigger(entity_info, type_info, when)
+  when = when or os.time()
+  local granularity_sec = alert_type.alert_granularity and alert_type.alert_granularity.granularity_seconds or 0
+  local granularity_id = alert_type.alert_granularity and alert_type.alert_granularity.granularity_id or nil
+
+  if(granularity_id ~= nil) then
+    local triggered = true
+    local alert_key_name = get_alert_triggered_key(type_info)
+
+    if(entity_info.alert_entity == alertEntity("host")) then
+      triggered = host.storeTriggeredAlert(alert_key_name, granularity_id)
+    end
+
+    if(not triggered) then
+      return(false)
+    end
+  end
+
+  local alert_json = json.encode(type_info.alert_type_params)
+
+  -- TODO put this into a queue
+  local rv = interface.triggerAlert(when,
+    granularity_sec,
+    type_info.alert_type.alert_type,
+    type_info.alert_type.severity,
+    entity_info.alert_entity,
+    entity_info.alert_entity_val,
+    alert_json,
+    type_info.alert_subtype or ""
+  )
+
+  if(rv.success and rv.new_alert) then
+    local action = ternary((granularity_id ~= nil), "engaged", "stored")
+    local message = {
+      ifid = interface.getId(),
+      entity_type = entity_info.alert_entity,
+      entity_value = entity_info.alert_entity_val,
+      type = type_info.alert_type.alert_type,
+      severity = type_info.alert_type.severity,
+      message = alert_json,
+      tstamp = when,
+      action = action,
+    }
+
+    alert_endpoints.dispatchNotification(message, json.encode(message))
+  end
+
+  return(rv.success)
+end
+
+-- ##############################################
+
+--! @brief Release an alert of given type on the entity
+--! @param entity_info data returned by one of the entity_info building functions
+--! @param type_info data returned by one of the type_info building functions
+--! @param when (optional) the time when the release event occurs
+--! @return true on success, false otherwise
+function alerts.new_release(entity_info, type_info)
+  when = when or os.time()
+  local granularity_sec = alert_type.alert_granularity and alert_type.alert_granularity.granularity_seconds or 0
+  local granularity_id = alert_type.alert_granularity and alert_type.alert_granularity.granularity_id or nil
+
+  if(granularity_id ~= nil) then
+    local released = true
+    local alert_key_name = get_alert_triggered_key(type_info)
+
+    if(entity_info.alert_entity == alertEntity("host")) then
+      triggered = host.releaseTriggeredAlert(alert_key_name, granularity_id)
+    end
+
+    if(not released) then
+      return(false)
+    end
+  end
+
+  -- TODO put this into a queue
+  local rv = interface.releaseAlert(when,
+    granularity_sec,
+    type_info.alert_type.alert_type,
+    type_info.alert_type.severity,
+    entity_info.alert_entity,
+    entity_info.alert_entity_val,
+    alert_json,
+    type_info.alert_subtype or ""
+  )
+
+  if(rv ~= nil) then
+    if(rv.success and rv.rowid) then
+      local res = interface.queryAlertsRaw("SELECT alert_json", string.format("WHERE rowid=%u", rv.rowid))
+      if((res ~= nil) and (#res == 1)) then
+        local msg = res[1].alert_json
+
+        local message = {
+          ifid = interface.getId(),
+          entity_type = entity_info.alert_entity,
+          entity_value = entity_info.alert_entity_val,
+          type = type_info.alert_type.alert_type,
+          severity = type_info.alert_type.severity,
+          message = alert_json,
+          tstamp = when,
+          action = "release",
+        }
+
+        alert_endpoints.dispatchNotification(message, json.encode(message))
+      end
+    end
+  end
+
+  return(rv.success)
+end
+
+-- ##############################################
+-- entity_info building functions
+-- ##############################################
+
+function alerts.hostAlertEntity(hostip, hostvlan)
+  return {
+    alert_entity = alert_consts.alert_entity_keys.host,
+    alert_entity_val = hostinfo2hostkey({ip = hostip, vlan = hostvlan}, nil, true)
+  }
+end
+
+-- ##############################################
+-- type_info building functions
+-- ##############################################
+
+function alerts.thresholdCrossType(granularity, metric, value, operator, edge)
+  local res = {
+    alert_type = alert_consts.alert_types.threshold_cross,
+    alert_subtype = string.format("%s_%s", granularity, metric),
+    alert_granularity = alert_consts.alerts_granularities.min,
+    alert_type_params = {
+      metric = metric,
+      value = value, operator = operator, edge = edge
+    }
+  }
+  --~ return {
+    --~ alert_severity = alertSeverity("error"),
+    --~ alert_type = alertType("threshold_cross"),
+    --~ alert_subtype = string.format("%s_%s", granularity, metric),
+    
+  --~ }
+
+  --~ return(alerts_table.tcp_syn_flood)
+  return(res)
+end
+
+-- ##############################################
+
 return(alerts)
