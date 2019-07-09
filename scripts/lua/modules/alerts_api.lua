@@ -10,6 +10,9 @@ local alert_consts = require("alert_consts")
 
 local alerts = {}
 
+local MAX_NUM_ENQUEUED_ALERTS_EVENTS = 100
+local ALERTS_EVENTS_QUEUE = "ntopng.cache.alerts_events_queue"
+
 -- Just helpers
 local str_2_periodicity = {
   ["min"]     = 60,
@@ -208,12 +211,64 @@ end
 
 -- ##############################################
 
+local function enqueueAlertEvent(alert_event)
+  local event_json = json.encode(alert_event)
+
+  ntop.rpushCache(ALERTS_EVENTS_QUEUE, event_json, MAX_NUM_ENQUEUED_ALERTS_EVENTS)
+
+  return(true)
+end
+
+-- ##############################################
+
+-- Performs the trigger/release asynchronously.
+-- This is necessary both to avoid paying the database io cost inside
+-- the other scripts and as a necessity to avoid a deadlock on the
+-- host hash in the host.lua script
+function alerts.processPendingAlertEvents(deadline)
+  while(true) do
+    local event_json = ntop.lpopCache(ALERTS_EVENTS_QUEUE)
+
+    if(not event_json) then
+      break
+    end
+
+    local event = json.decode(event_json)
+    local to_call
+
+    interface.select(tostring(event.ifid))
+
+    if(event.action == "release") then
+      to_call = interface.releaseAlert
+    else
+      to_call = interface.triggerAlert
+    end
+
+    rv = to_call(
+      event.tstamp, event.granularity,
+      event.type, event.severity,
+      event.entity_type, event.entity_value,
+      event.message, event.subtype)
+
+    if(rv.success) then
+      alert_endpoints.dispatchNotification(event, event_json)
+    end
+
+    if(os.time() > deadline) then
+      break
+    end
+  end
+end
+
+-- ##############################################
+
 -- TODO: remove the "new_" prefix and unify with other alerts
 
 --! @brief Trigger an alert of given type on the entity
 --! @param entity_info data returned by one of the entity_info building functions
 --! @param type_info data returned by one of the type_info building functions
 --! @param when (optional) the time when the release event occurs
+--! @note The actual trigger is performed asynchronously
 --! @return true on success, false otherwise
 function alerts.new_trigger(entity_info, type_info, when)
   when = when or os.time()
@@ -234,35 +289,22 @@ function alerts.new_trigger(entity_info, type_info, when)
   end
 
   local alert_json = json.encode(type_info.alert_type_params)
+  local action = ternary((granularity_id ~= nil), "engaged", "stored")
 
-  -- TODO put this into a queue
-  local rv = interface.triggerAlert(when,
-    granularity_sec,
-    type_info.alert_type.alert_id,
-    type_info.alert_type.severity.severity_id,
-    entity_info.alert_entity.entity_id,
-    entity_info.alert_entity_val,
-    alert_json,
-    type_info.alert_subtype or ""
-  )
+  local alert_event = {
+    ifid = interface.getId(),
+    granularity = granularity_sec,
+    entity_type = entity_info.alert_entity.entity_id,
+    entity_value = entity_info.alert_entity_val,
+    type = type_info.alert_type.alert_id,
+    severity = type_info.alert_type.severity.severity_id,
+    message = alert_json,
+    subtype = type_info.alert_subtype or "",
+    tstamp = when,
+    action = action,
+  }
 
-  if(rv.success and rv.new_alert) then
-    local action = ternary((granularity_id ~= nil), "engaged", "stored")
-    local message = {
-      ifid = interface.getId(),
-      entity_type = entity_info.alert_entity.entity_id,
-      entity_value = entity_info.alert_entity_val,
-      type = type_info.alert_type.alert_id,
-      severity = type_info.alert_type.severity.severity_id,
-      message = alert_json,
-      tstamp = when,
-      action = action,
-    }
-
-    alert_endpoints.dispatchNotification(message, json.encode(message))
-  end
-
-  return(rv.success)
+  return(enqueueAlertEvent(alert_event))
 end
 
 -- ##############################################
@@ -271,6 +313,7 @@ end
 --! @param entity_info data returned by one of the entity_info building functions
 --! @param type_info data returned by one of the type_info building functions
 --! @param when (optional) the time when the release event occurs
+--! @note The actual release is performed asynchronously
 --! @return true on success, false otherwise
 function alerts.new_release(entity_info, type_info)
   when = when or os.time()
@@ -290,40 +333,20 @@ function alerts.new_release(entity_info, type_info)
     end
   end
 
-  -- TODO put this into a queue
-  local rv = interface.releaseAlert(when,
-    granularity_sec,
-    type_info.alert_type.alert_id,
-    type_info.alert_type.severity.severity_id,
-    entity_info.alert_entity.entity_id,
-    entity_info.alert_entity_val,
-    alert_json,
-    type_info.alert_subtype or ""
-  )
+  local alert_event = {
+    ifid = interface.getId(),
+    granularity = granularity_sec,
+    entity_type = entity_info.alert_entity.entity_id,
+    entity_value = entity_info.alert_entity_val,
+    type = type_info.alert_type.alert_id,
+    severity = type_info.alert_type.severity.severity_id,
+    message = alert_json,
+    subtype = type_info.alert_subtype or "",
+    tstamp = when,
+    action = "release",
+  }
 
-  if(rv ~= nil) then
-    if(rv.success and rv.rowid) then
-      local res = interface.queryAlertsRaw("SELECT alert_json", string.format("WHERE rowid=%u", rv.rowid))
-      if((res ~= nil) and (#res == 1)) then
-        local msg = res[1].alert_json
-
-        local message = {
-          ifid = interface.getId(),
-          entity_type = entity_info.alert_entity.entity_id,
-          entity_value = entity_info.alert_entity_val,
-          type = type_info.alert_type.alert_id,
-          severity = type_info.alert_type.severity.severity_id,
-          message = alert_json,
-          tstamp = when,
-          action = "release",
-        }
-
-        alert_endpoints.dispatchNotification(message, json.encode(message))
-      end
-    end
-  end
-
-  return(rv.success)
+  return(enqueueAlertEvent(alert_event))
 end
 
 -- ##############################################

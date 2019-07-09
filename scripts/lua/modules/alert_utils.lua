@@ -54,7 +54,7 @@ function alertSeverityLabel(v, nohtml)
       if(nohtml) then
         return(title)
       else
-        return(string.format('<i class="fa %s"></i> %s', severity_info.icon, title))
+        return(string.format('<span class="label %s">%s</span>', severity_info.label, title))
       end
    end
 end
@@ -3249,6 +3249,8 @@ end
 -- NOTE: this is executed in a system VM, with no interfaces references
 function processAlertNotifications(now, periodic_frequency, force_export)
    updateAlertStats(now)
+
+   alerts.processPendingAlertEvents(now + periodic_frequency)
 
    -- Get new alerts
    while(true) do
