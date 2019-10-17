@@ -3509,7 +3509,6 @@ static bool flow_matches(Flow *f, struct flowHostRetriever *retriever) {
   bool filtered_flows;
 #endif
   FlowStatus status;
-  Bitmap status_map;
 
   if(f && (!f->idle())) {
     if(retriever->host) {
@@ -3674,7 +3673,7 @@ static bool flow_matches(Flow *f, struct flowHostRetriever *retriever) {
 	   || ((server_policy == location_remote_only) && (f->get_srv_host()->isLocalHost()))))
       return(false);
 
-    status = f->getFlowStatus(&status_map);
+    status = f->getPredominantStatus();
 
     if(retriever->pag
        && retriever->pag->misbehavingFlows(&misbehaving_flows)

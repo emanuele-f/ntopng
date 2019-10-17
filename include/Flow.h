@@ -54,13 +54,24 @@ class Flow : public GenericHashEntry {
   u_int32_t vrfId;
   u_int8_t protocol, src2dst_tcp_flags, dst2src_tcp_flags;
   u_int16_t alert_score;
-  Bitmap status_map, last_notified_status_map;
   time_t performed_lua_calls[FLOW_LUA_CALL_MAX_VAL];
   struct ndpi_flow_struct *ndpiFlow;
-  FlowStatus alerted_status;
+
+  /* Flow alert generation follows the following steps:
+   *
+   * 1. lua calls Flow::triggerAlert() and pending alert information is
+   *    stored in this structure
+   * 2. Flow is scanned periodically and, if hasPendingAlert() is true,
+   *    the alert is stored into the database and is_alerted is set to true
+   */
+  Bitmap status_map;              /* The bitmap of the possible problems on the flow */
+  FlowStatus alerted_status;      /* This is the status which has triggered the alert */
+  FlowStatus predominant_status;  /* This is the most important status currently set in the status_map */
   AlertType alert_type;
   AlertLevel alert_level;
-  char *tmp_alert_json;
+  char *pending_alert_json;       /* Temporary alert message information, to be stored into the alert json */
+  bool is_alerted;
+
   u_int hash_entry_id; /* Uniquely identify this Flow inside the flows_hash hash table*/
 
   /* When the interface isViewed(), the corresponding view needs to acknowledge the purge
@@ -72,8 +83,7 @@ class Flow : public GenericHashEntry {
     cli2srv_direction, twh_over, twh_ok, dissect_next_http_packet, passVerdict,
     check_tor, l7_protocol_guessed, flow_dropped_counts_increased,
     good_low_flow_detected, good_ssl_hs, update_flow_port_stats,
-    quota_exceeded, has_malicious_cli_signature, has_malicious_srv_signature,
-    is_alerted;
+    quota_exceeded, has_malicious_cli_signature, has_malicious_srv_signature;
 #ifdef ALERTED_FLOWS_DEBUG
   bool iface_alert_inc, iface_alert_dec;
 #endif
@@ -245,6 +255,7 @@ class Flow : public GenericHashEntry {
   bool get_partial_traffic_stats(FlowTrafficStats **dst, FlowTrafficStats *delta, bool *first_partial) const;
   bool isLuaCallPerformed(FlowLuaCall flow_lua_call, const struct timeval *tv);
   void performLuaCall(FlowLuaCall flow_lua_call, const struct timeval *tv, AlertCheckLuaEngine **acle);
+  inline bool hasPendingAlert() const         { return((alert_type != alert_none) && (!is_alerted)); }
 
  public:
   Flow(NetworkInterface *_iface,
@@ -255,12 +266,12 @@ class Flow : public GenericHashEntry {
        time_t _first_seen, time_t _last_seen);
   ~Flow();
 
-  inline Bitmap getStatusBitmap()               { return(status_map);           }
+  inline Bitmap getStatusBitmap()     const     { return(status_map);           }
   inline void setStatus(FlowStatus status)      { status_map.setBit(status);    }
   inline void clearStatus(FlowStatus status)    { status_map.clearBit(status);  }
-  FlowStatus getFlowStatus(Bitmap *status_map) const;
-  void triggerAlert(AlertType atype, AlertLevel severity, const char*alert_json);
-  inline void setAlertedStatus(FlowStatus status)      { alerted_status = status; };
+  void triggerAlert(FlowStatus status, AlertType atype, AlertLevel severity, const char*alert_json);
+  inline void setPredominantStatus(FlowStatus status) { predominant_status = status; }
+  inline FlowStatus getPredominantStatus() const      { return(predominant_status); }
 
   bool isBlacklistedFlow() const;
   struct site_categories* getFlowCategory(bool force_categorization);
@@ -512,7 +523,6 @@ class Flow : public GenericHashEntry {
     external_alert = a; external_alert_severity = severity; };
   inline json_object *getExternalAlert()     const { return external_alert; };
   inline u_int8_t getExternalAlertSeverity() const { return external_alert_severity; };
-  int storeFlowAlert(AlertType alert_type, AlertLevel alert_severity, const char *status_info);
 
 #if defined(NTOPNG_PRO) && !defined(HAVE_NEDGE)
   inline void updateProfile()     { trafficProfile = iface->getFlowProfile(this); }
@@ -534,9 +544,8 @@ class Flow : public GenericHashEntry {
 						 && ((dst2src_tcp_flags & (TH_SYN | TH_ACK | TH_FIN)) == (TH_SYN | TH_ACK | TH_FIN))); }
   inline bool isTCPReset()       const { return (!isTCPClosed()
 						 && ((src2dst_tcp_flags & TH_RST) || (dst2src_tcp_flags & TH_RST))); }
-  bool isFlowAlerted() const;
-  void setFlowAlerted();
-  void setFlowAlertId(int64_t rowid);
+  inline bool isFlowAlerted() const         { return(is_alerted); };
+  inline void setFlowAlertId(int64_t rowid) { alert_rowid = rowid; };
   inline void      setVRFid(u_int32_t v)  { vrfId = v;                              }
 
   inline void setFlowNwLatency(const struct timeval * const tv, bool client) {

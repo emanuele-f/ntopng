@@ -976,6 +976,8 @@
 #define QUEUE_WATERMARK         8 /* pow of 2 */
 #define QUEUE_WATERMARK_MASK    (QUEUE_WATERMARK - 1)
 
+#define BITMAP_NUM_BITS               64
+
 #define SSL_HANDSHAKE_PACKET          0x16
 #define SSL_PAYLOAD_PACKET            0x17
 #define SSL_CLIENT_HELLO              0x01

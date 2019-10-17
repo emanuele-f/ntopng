@@ -27,9 +27,15 @@ local do_trace = false             -- Trace lua calls
 local available_modules = nil
 local benchmarks = {}
 
--- Keeps information about the current predominant status
-local predominant_status = nil
-local predominant_status_msg = nil
+-- Keeps information about the current predominant alerted status
+local alerted_status
+local alerted_status_msg
+local predominant_status
+local recalculate_predominant_status
+
+-- Save them as they are overridden
+local c_flow_set_status = flow.setStatus
+local c_flow_clear_status = flow.clearStatus
 
 -- #################################################################
 
@@ -105,10 +111,13 @@ end
 local function call_modules(l4_proto, mod_fn)
    local hooks = available_modules.l4_hooks[l4_proto]
    local rv = false
+   local prev_predominant_status = flow_consts.getStatusInfo(flow.getPredominantStatus())
 
    -- Reset predominant status information
-   predominant_status = nil
-   predominant_status_msg = nil
+   alerted_status = nil
+   alerted_status_msg = nil
+   recalculate_predominant_status = false
+   predominant_status = prev_predominant_status
 
    if(hooks ~= nil) then
       hooks = hooks[mod_fn]
@@ -118,6 +127,8 @@ local function call_modules(l4_proto, mod_fn)
       if do_trace then print(string.format("No flow.lua modules, skipping %s(%d) for %s\n", mod_fn, l4_proto, shortFlowLabel(flow.getInfo()))) end
       return(false)
    end
+
+   if(do_trace) then print(string.format("%s()[START]: bitmap=0x%x predominant=%d", mod_fn, flow.getStatus(), prev_predominant_status.status_id)) end
 
    -- TODO too expensive, remove
    local info = flow.getFullInfo()
@@ -134,13 +145,26 @@ local function call_modules(l4_proto, mod_fn)
       rv = true
    end
 
-   if(predominant_status ~= nil) then
+   if(recalculate_predominant_status) then
+      -- The predominant status has changed and we've lost track of it
+      -- This is the worst case, it must be recalculated manually
+      predominant_status = flow_consts.getPredominantStatus(flow.getStatus())
+   end
+
+   if(do_trace) then print(string.format("%s()[END]: bitmap=0x%x predominant=%d", mod_fn, flow.getStatus(), predominant_status.status_id)) end
+
+   if(prev_predominant_status ~= predominant_status) then
+      -- The predominant status has changed, updated the flow
+      flow.setPredominantStatus(predominant_status.status_id)
+   end
+
+   if(alerted_status ~= nil) then
       if do_trace then
          traceError(TRACE_NORMAL, TRACE_CONSOLE, string.format("flow.triggerAlert(type=%s, severity=%s)",
-            alertTypeRaw(predominant_status.alert_type.alert_id), alertSeverityRaw(predominant_status.alert_severity.severity_id)))
+            alertTypeRaw(alerted_status.alert_type.alert_id), alertSeverityRaw(alerted_status.alert_severity.severity_id)))
       end
 
-      flow.triggerAlert(predominant_status.status_id, predominant_status.alert_type.alert_id, predominant_status.alert_severity.severity_id, predominant_status_msg)
+      flow.triggerAlert(alerted_status.status_id, alerted_status.alert_type.alert_id, alerted_status.alert_severity.severity_id, alerted_status_msg)
    end
 
    return(rv)
@@ -154,14 +178,43 @@ end
 function flow.triggerStatus(status_id, status_json)
    local new_status = flow_consts.getStatusInfo(status_id)
 
-   if((predominant_status == nil) or (new_status.prio > predominant_status.prio)) then
-      -- The new status as an higher priority
-      predominant_status = new_status
-      predominant_status_msg = status_json
+   if((alerted_status == nil) or (new_status.prio > alerted_status.prio)) then
+      -- The new alerted status as an higher priority
+      alerted_status = new_status
+      alerted_status_msg = status_json
    end
 
-   -- Set the status bit in the flow status bitmap
+   -- Call the function below to handle the predominant status and update
+   -- the flow status
    flow.setStatus(status_id)
+end
+
+-- #################################################################
+
+-- NOTE: overrides the C flow.setStatus (now saved in c_flow_set_status)
+function flow.setStatus(status_id)
+   if c_flow_set_status(status_id) then
+      -- The status has actually changed
+      local new_status = flow_consts.getStatusInfo(status_id)
+
+      if(new_status.prio > predominant_status.prio) then
+         -- The new status as an higher priority
+         predominant_status = new_status
+      end
+   end
+end
+
+-- #################################################################
+
+-- NOTE: overrides the C flow.clearStatus (now saved in c_flow_clear_status)
+function flow.clearStatus(status_id)
+   if c_flow_clear_status(status_id) then
+      -- The status has actually changed
+      if(predominant_status.id == status_id) then
+         -- The predominant status has been cleared, need to recalculate it
+         recalculate_predominant_status = true
+      end
+   end
 end
 
 -- #################################################################

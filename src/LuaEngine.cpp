@@ -8623,16 +8623,23 @@ static int ntop_flow_get_status(lua_State* vm) {
 // ***API***
 static int ntop_flow_set_status(lua_State* vm) {
   FlowStatus new_status;
+  Bitmap old_bitmap;
   Flow *f = ntop_flow_get_context_flow(vm);
+  bool changed = false;
 
   if(!f) return(CONST_LUA_ERROR);
 
   if(ntop_lua_check(vm, __FUNCTION__, 1, LUA_TNUMBER) != CONST_LUA_OK) return(CONST_LUA_ERROR);
   new_status = (FlowStatus)lua_tonumber(vm, 1);
 
-  f->setStatus(new_status);
-  lua_pushnil(vm);
+  old_bitmap = f->getStatusBitmap();
 
+  if(!old_bitmap.issetBit(new_status)) {
+    f->setStatus(new_status);
+    changed = true;
+  }
+
+  lua_pushboolean(vm, changed);
   return(CONST_LUA_OK);
 }
 
@@ -8641,14 +8648,49 @@ static int ntop_flow_set_status(lua_State* vm) {
 // ***API***
 static int ntop_flow_clear_status(lua_State* vm) {
   FlowStatus new_status;
+  Bitmap old_bitmap;
   Flow *f = ntop_flow_get_context_flow(vm);
+  bool changed = false;
 
   if(!f) return(CONST_LUA_ERROR);
 
   if(ntop_lua_check(vm, __FUNCTION__, 1, LUA_TNUMBER) != CONST_LUA_OK) return(CONST_LUA_ERROR);
   new_status = (FlowStatus)lua_tonumber(vm, 1);
 
-  f->clearStatus(new_status);
+  old_bitmap = f->getStatusBitmap();
+
+  if(old_bitmap.issetBit(new_status)) {
+    f->clearStatus(new_status);
+    changed = true;
+  }
+
+  lua_pushboolean(vm, changed);
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_get_predominant_status(lua_State* vm) {
+  Flow *f = ntop_flow_get_context_flow(vm);
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  lua_pushinteger(vm, f->getPredominantStatus());
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_set_predominant_status(lua_State* vm) {
+  FlowStatus status;
+  Flow *f = ntop_flow_get_context_flow(vm);
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  if(ntop_lua_check(vm, __FUNCTION__, 1, LUA_TNUMBER) != CONST_LUA_OK) return(CONST_LUA_ERROR);
+  status = (FlowStatus)lua_tonumber(vm, 1);
+
+  f->setPredominantStatus(status);
   lua_pushnil(vm);
 
   return(CONST_LUA_OK);
@@ -8677,8 +8719,7 @@ static int ntop_flow_trigger_alert(lua_State* vm) {
   if(lua_type(vm, 4) == LUA_TSTRING)
     status_info = lua_tostring(vm, 4);
 
-  f->setAlertedStatus(status);
-  f->triggerAlert(atype, severity, status_info);
+  f->triggerAlert(status, atype, severity, status_info);
   lua_pushnil(vm);
 
   return(CONST_LUA_OK);
@@ -8910,32 +8951,6 @@ static int  ntop_flow_get_cli_geoloc(lua_State* vm) {
 
 static int  ntop_flow_get_srv_geoloc(lua_State* vm) {
   return ntop_flow_get_geoloc(vm,  false /* Server */);
-}
-
-/* ****************************************** */
-
-static int ntop_flow_store_alert(lua_State* vm) {
-  Flow *f = ntop_flow_get_context_flow(vm);
-  AlertLevel alert_severity;
-  AlertType alert_type;
-  const char *status_info = NULL;
-  int idx = 1;
-
-  if(!f) return(CONST_LUA_ERROR);
-
-  if(ntop_lua_check(vm, __FUNCTION__, idx, LUA_TNUMBER) != CONST_LUA_OK) return(CONST_LUA_ERROR);
-  alert_type = (AlertType)lua_tonumber(vm, idx++);
-
-  if(ntop_lua_check(vm, __FUNCTION__, idx, LUA_TNUMBER) != CONST_LUA_OK) return(CONST_LUA_ERROR);
-  alert_severity = (AlertLevel)lua_tonumber(vm, idx++);
-
-  if(lua_type(vm, idx) == LUA_TSTRING)
-    status_info = lua_tostring(vm, idx);
-
-  if(!f->storeFlowAlert(alert_type, alert_severity, status_info))
-    return(CONST_LUA_OK);
-
-  return(CONST_LUA_ERROR);
 }
 
 /* ****************************************** */
@@ -10264,6 +10279,8 @@ static const luaL_Reg ntop_flow_reg[] = {
 
   /* Internal */
   { "triggerAlert",             ntop_flow_trigger_alert              },
+  { "getPredominantStatus",     ntop_get_predominant_status          },
+  { "setPredominantStatus",     ntop_set_predominant_status          },
 
   /* TODO document */
   { "isLocal",                  ntop_flow_is_local                   },
@@ -10276,7 +10293,6 @@ static const luaL_Reg ntop_flow_reg[] = {
   { "getServerMUDPref",         ntop_flow_get_server_mud_pref        },
   { "serializeClientByMac",     ntop_flow_serialize_client_by_mac    },
   { "serializeServerByMac",     ntop_flow_serialize_server_by_mac    },
-  { "storeAlert",               ntop_flow_store_alert                },
 
   { "getProtocols",             ntop_flow_get_protocols              },
   { "getBytes",                 ntop_flow_get_bytes                  },

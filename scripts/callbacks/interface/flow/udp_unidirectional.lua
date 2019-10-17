@@ -27,7 +27,6 @@ local script = {
 
 -- #################################################################
 
--- NOTE: what if at some point the flow receives a packet? We need to cancel the status bit
 function script.hooks.all(params)
    local info = flow.getInfo()
 
@@ -36,10 +35,10 @@ function script.hooks.all(params)
 
       -- Now check if the recipient isn't a broadcast/multicast address
       if(not(info["srv.broadmulticast"])) then
-         -- TODO use flow.setStatus once #2950 is fixed
-         flow.triggerStatus(flow_consts.status_types.status_udp_unidirectional.status_id)
+         flow.setStatus(flow_consts.status_types.status_udp_unidirectional.status_id)
       end
-   -- else flow.clearStatus(flow_consts.status_types.status_udp_unidirectional.status_id)
+   else
+      flow.clearStatus(flow_consts.status_types.status_udp_unidirectional.status_id)
    end
 end
 

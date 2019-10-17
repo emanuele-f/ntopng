@@ -854,7 +854,7 @@ else
       if(flow["protos.ssl.server_certificate"] ~= nil) then
 	 print(i18n("flow_details.server_certificate")..": <A HREF=\"http://"..flow["protos.ssl.server_certificate"].."\">"..flow["protos.ssl.server_certificate"].."</A>")
 
-	 if(flow["flow.status"] == flow_consts.status_types.status_ssl_certificate_mismatch.status_id) then
+	 if(ntop.bitmapIsSet(flow["status_map"], flow_consts.status_types.status_ssl_certificate_mismatch.status_id)) then
 	    print("\n<br><i class=\"fa fa-warning fa-lg\" style=\"color: #f0ad4e;\"></i> <b><font color=\"#f0ad4e\">"..i18n("flow_details.certificates_not_match").."</font></b>")
 	 end
       end
