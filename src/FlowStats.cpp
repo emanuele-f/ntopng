@@ -50,7 +50,7 @@ void FlowStats::incStats(Bitmap status_bitmap, u_int8_t l4_protocol) {
 void FlowStats::lua(lua_State* vm) {
   lua_newtable(vm);
 
-  for(int i = 0; i < num_flow_status; i++) {
+  for(int i = 0; i < BITMAP_NUM_BITS; i++) {
     if(unlikely(counters[i] > 0)) {
       lua_newtable(vm);
 

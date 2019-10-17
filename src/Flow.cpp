@@ -47,7 +47,7 @@ Flow::Flow(NetworkInterface *_iface,
     flow_dropped_counts_increased = false, vrfId = 0;
     alert_score = CONST_NO_SCORE_SET;
 
-  pending_alert_json = NULL;
+  alert_status_info = NULL;
   alert_type = alert_none;
   alert_level = alert_level_none;
   alerted_status = status_normal;
@@ -301,7 +301,7 @@ Flow::~Flow() {
   freeDPIMemory();
   if(icmp_info) delete(icmp_info);
   if(external_alert) json_object_put(external_alert);
-  if(pending_alert_json) free(pending_alert_json);
+  if(alert_status_info) free(alert_status_info);
 }
 
 /* *************************************** */
@@ -343,12 +343,7 @@ void Flow::dumpFlowAlert() {
 
     /* Dump alert */
     is_alerted = true;
-    iface->getAlertsManager()->storeFlowAlert(this, alerted_status, alert_type, alert_level, pending_alert_json);
-
-    if(pending_alert_json) {
-      free(pending_alert_json);
-      pending_alert_json = NULL;
-    }
+    iface->getAlertsManager()->storeFlowAlert(this, alerted_status, alert_type, alert_level, alert_status_info);
 
     if(!idle()) {
       /* If idle() and not alerted, the interface
@@ -1371,10 +1366,10 @@ void Flow::update_hosts_stats(bool dump_alert, update_stats_user_data_t *update_
     }
 
     /* Check and possibly enqueue host remote-to-remote alerts */
+    // TODO migrate to lua
     if(!cli_host->isLocalHost() && !srv_host->isLocalHost()
        && get_cli_ip_addr()->isNonEmptyUnicastAddress()
        && get_srv_ip_addr()->isNonEmptyUnicastAddress()
-       && ntop->getPrefs()->are_remote_to_remote_alerts_enabled()
        && !cli_host->setRemoteToRemoteAlerts()) {
       iface->getAlertsQueue()->pushRemoteToRemoteAlert(cli_host);
     }
@@ -1895,11 +1890,8 @@ void Flow::lua(lua_State* vm, AddressTree * ptree,
       }
     }
 
-    json_object *status_info_json = flow2statusinfojson();
-    if(status_info_json) {
-      lua_push_str_table_entry(vm, "status_info", (char*)json_object_to_json_string(status_info_json));
-      json_object_put(status_info_json);
-    }
+    if(alert_status_info)
+      lua_push_str_table_entry(vm, "status_info", alert_status_info);
   }
 
   lua_get_status(vm);
@@ -2070,89 +2062,6 @@ char* Flow::serialize(bool es_json) {
   }
 
   return(rsp);
-}
-
-/* *************************************** */
-
-/* Returns a stripped-down JSON specifically used for providing more alert information */
-/* TODO: this method will be thrown away once the migration to the lua flows alerts generation is completed */
-json_object* Flow::flow2statusinfojson() {
-  DeviceProtoStatus proto_status = device_proto_allowed;
-  json_object *obj;
-  char buf[128];
-
-  obj = json_object_new_object();
-  if(!obj) return NULL;
-
-  json_object_object_add(obj, "cli.devtype", json_object_new_int((cli_host && cli_host->getMac()) ? cli_host->getMac()->getDeviceType() : device_unknown));
-  json_object_object_add(obj, "srv.devtype", json_object_new_int((srv_host && srv_host->getMac()) ? srv_host->getMac()->getDeviceType() : device_unknown));
-  json_object_object_add(obj, "ntopng.key", json_object_new_int64(key()));
-  json_object_object_add(obj, "hash_entry_id", json_object_new_int64(get_hash_entry_id()));
-
-  if(cli_host && ((proto_status = cli_host->getDeviceAllowedProtocolStatus(ndpiDetectedProtocol, true /* client */)) != device_proto_allowed)) {
-    json_object_object_add(obj, "devproto_forbidden_peer", json_object_new_string("cli"));
-    json_object_object_add(obj, "devproto_forbidden_id", json_object_new_int(
-      (proto_status == device_proto_forbidden_app) ? ndpiDetectedProtocol.app_protocol : ndpiDetectedProtocol.master_protocol));
-  } else if(srv_host && ((proto_status = srv_host->getDeviceAllowedProtocolStatus(ndpiDetectedProtocol, false /* server */)) != device_proto_allowed)) {
-    json_object_object_add(obj, "devproto_forbidden_peer", json_object_new_string("srv"));
-    json_object_object_add(obj, "devproto_forbidden_id", json_object_new_int(
-      (proto_status == device_proto_forbidden_app) ? ndpiDetectedProtocol.app_protocol : ndpiDetectedProtocol.master_protocol));
-  }
-
-  if (status_map.issetBit(status_external_alert)) {
-    json_object *obj_external_alert = getExternalAlert();
-    if (obj_external_alert)
-      json_object_object_add(obj, "external_alert", json_object_get(obj_external_alert));
-  }
-
-  if (status_map.issetBit(status_blacklisted)) {
-    if(cli_host && cli_host->isBlacklisted())
-      json_object_object_add(obj, "blacklisted.cli", json_object_new_boolean(true));
-    if(srv_host && srv_host->isBlacklisted())
-      json_object_object_add(obj, "blacklisted.srv", json_object_new_boolean(true));
-    if(get_protocol_category() == CUSTOM_CATEGORY_MALWARE)
-      json_object_object_add(obj, "blacklisted.cat", json_object_new_boolean(true));
-  }
-
-  if (status_map.issetBit(status_ssl_certificate_mismatch)) {
-    if(protos.ssl.certificate && protos.ssl.certificate[0] != '\0')
-      json_object_object_add(obj, "ssl_crt.cli", json_object_new_string(protos.ssl.certificate));
-    if(protos.ssl.server_certificate && protos.ssl.server_certificate[0] != '\0')
-      json_object_object_add(obj, "ssl_crt.srv", json_object_new_string(protos.ssl.server_certificate));
-  }
-
-  if(status_map.issetBit(status_elephant_local_to_remote))
-    json_object_object_add(obj, "elephant.l2r_threshold",
-			   json_object_new_int64(ntop->getPrefs()->get_elephant_flow_local_to_remote_bytes()));
-
-  if(status_map.issetBit(status_elephant_remote_to_local))
-    json_object_object_add(obj, "elephant.r2l_threshold",
-			   json_object_new_int64(ntop->getPrefs()->get_elephant_flow_remote_to_local_bytes()));
-
-  if(status_map.issetBit(status_malicious_signature)) {
-    if(has_malicious_cli_signature)
-      json_object_object_add(obj, "cli_ja3_signature", json_object_new_string(protos.ssl.ja3.client_hash));
-    if(has_malicious_srv_signature)
-      json_object_object_add(obj, "srv_ja3_signature", json_object_new_string(protos.ssl.ja3.server_hash));
-  }
-
-  if(isICMP()) { /* TODO: throw this block away once the lua alerts migration is completed */ 
-    json_object_object_add(obj, "icmp.icmp_type", json_object_new_int(protos.icmp.icmp_type)),
-      json_object_object_add(obj, "icmp.icmp_code", json_object_new_int(protos.icmp.icmp_code));
-
-    if(icmp_info) {
-      unreachable_t *unreach = icmp_info->getUnreach();
-
-      if(unreach)
-	json_object_object_add(obj, "icmp.unreach.src_ip", json_object_new_string(unreach->src_ip.print(buf, sizeof(buf)))),
-	  json_object_object_add(obj, "icmp.unreach.dst_ip", json_object_new_string(unreach->dst_ip.print(buf, sizeof(buf)))),
-	  json_object_object_add(obj, "icmp.unreach.src_port", json_object_new_int(ntohs(unreach->src_port))),
-	  json_object_object_add(obj, "icmp.unreach.dst_port", json_object_new_int(ntohs(unreach->dst_port))),
-	  json_object_object_add(obj, "icmp.unreach.protocol", json_object_new_int(unreach->protocol));
-    }
-  }
-
-  return obj;
 }
 
 /* *************************************** */
@@ -4474,7 +4383,7 @@ void Flow::triggerAlert(FlowStatus status, AlertType atype, AlertLevel severity,
     }
   }
 
-  pending_alert_json = alert_json ? strdup(alert_json) : NULL;
+  alert_status_info = alert_json ? strdup(alert_json) : NULL;
   alerted_status = status;
   alert_level = severity;
   alert_type = atype; /* set this as the last thing to avoid concurrency issues */

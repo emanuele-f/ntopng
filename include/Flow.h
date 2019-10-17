@@ -69,7 +69,7 @@ class Flow : public GenericHashEntry {
   FlowStatus predominant_status;  /* This is the most important status currently set in the status_map */
   AlertType alert_type;
   AlertLevel alert_level;
-  char *pending_alert_json;       /* Temporary alert message information, to be stored into the alert json */
+  char *alert_status_info;        /* Alert specific status info */
   bool is_alerted;
 
   u_int hash_entry_id; /* Uniquely identify this Flow inside the flows_hash hash table*/
@@ -292,7 +292,6 @@ class Flow : public GenericHashEntry {
   char* serialize(bool es_json = false);
   json_object* flow2json();
   json_object* flow2es(json_object *flow_object);
-  json_object* flow2statusinfojson();
   inline u_int8_t getTcpFlags()        const { return(src2dst_tcp_flags | dst2src_tcp_flags);  };
   inline u_int8_t getTcpFlagsCli2Srv() const { return(src2dst_tcp_flags);                      };
   inline u_int8_t getTcpFlagsSrv2Cli() const { return(dst2src_tcp_flags);                      };

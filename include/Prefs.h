@@ -66,23 +66,14 @@ class Prefs {
   u_int32_t longlived_flow_duration;
   bool disable_alerts, enable_top_talkers, enable_idle_local_hosts_cache,
     enable_active_local_hosts_cache;
-  bool enable_flow_device_port_rrd_creation, enable_probing_alerts,
-    enable_ssl_alerts, enable_ip_reassignment_alerts;
+  bool enable_flow_device_port_rrd_creation;
   bool enable_tiny_flows_export, enable_aggregated_flows_export_limit;
-  bool enable_dns_alerts, enable_remote_to_remote_alerts;
-  bool enable_mining_alerts;
-  bool enable_dropped_flows_alerts, enable_device_protocols_alerts;
-  bool enable_potentially_dangerous_protocols_alerts;
-  bool enable_syslog_alerts;
-  bool enabled_malware_alerts, enabled_external_alerts;
   bool enable_captive_portal, enable_informative_captive_portal, mac_based_captive_portal;
+  bool enable_ip_reassignment_alerts;
   bool override_dst_with_post_nat_dst, override_src_with_post_nat_src;
   bool use_ports_to_determine_src_and_dst;
   bool routing_mode_enabled, global_dns_forging_enabled;
   bool device_protocol_policies_enabled, enable_vlan_trunk_bridge;
-  bool enable_elephant_flows_alerts;
-  bool enable_longlived_flows_alerts;
-  bool enable_exfiltration_alerts;
   bool enable_arp_matrix_generation;
   int32_t max_num_alerts_per_entity, max_num_flow_alerts;
   u_int32_t safe_search_dns_ip, global_primary_dns_ip, global_secondary_dns_ip;
@@ -316,21 +307,7 @@ class Prefs {
   inline bool is_tiny_flows_export_enabled()             { return(enable_tiny_flows_export);            };
   inline bool is_aggregated_flows_export_limit_enabled() { return(enable_aggregated_flows_export_limit);};
   inline bool is_flow_device_port_rrd_creation_enabled() { return(enable_flow_device_port_rrd_creation);};
-  inline bool are_ip_reassignment_alerts_enabled()       { return(enable_ip_reassignment_alerts);       };
-  inline bool are_probing_alerts_enabled()               { return(enable_probing_alerts);               };
-  inline bool are_ssl_alerts_enabled()                   { return(enable_ssl_alerts);                   };
-  inline bool are_dns_alerts_enabled()                   { return(enable_dns_alerts);                   };
-  inline bool are_mining_alerts_enabled()                { return(enable_mining_alerts);                };
-  inline bool are_remote_to_remote_alerts_enabled()      { return(enable_remote_to_remote_alerts);      };
-  inline bool are_dropped_flows_alerts_enabled()         { return(enable_dropped_flows_alerts);         };
-  inline bool are_device_protocols_alerts_enabled()      { return(enable_device_protocols_alerts);      };
-  inline bool are_potentially_dangerous_protocols_alerts_enabled() { return(enable_potentially_dangerous_protocols_alerts); };
-  inline bool are_alerts_syslog_enabled()                { return(enable_syslog_alerts);                };
-  inline bool are_malware_alerts_enabled()               { return(enabled_malware_alerts);              };
-  inline bool are_external_alerts_enabled()              { return(enabled_external_alerts);              };
-  inline bool are_elephant_flows_alerts_enabled()        { return(enable_elephant_flows_alerts);        };
-  inline bool are_longlived_flows_alerts_enabled()       { return(enable_longlived_flows_alerts);       };
-  inline bool are_exfiltration_alerts_enabled()          { return(enable_exfiltration_alerts);          };
+  inline bool are_ip_reassignment_alerts_enabled()       { return(enable_ip_reassignment_alerts); };
   inline bool is_arp_matrix_generation_enabled()         { return(enable_arp_matrix_generation);        };
 
   inline bool do_override_dst_with_post_nat_dst()     const { return(override_dst_with_post_nat_dst);     };
