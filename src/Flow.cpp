@@ -88,6 +88,7 @@ Flow::Flow(NetworkInterface *_iface,
   
   external_alert = NULL;
   external_alert_severity = 255;
+  trigger_periodic_update = false;
 
   memset(&last_db_dump, 0, sizeof(last_db_dump));
   memset(&protos, 0, sizeof(protos));
@@ -300,7 +301,7 @@ Flow::~Flow() {
 
   freeDPIMemory();
   if(icmp_info) delete(icmp_info);
-  if(external_alert) json_object_put(external_alert);
+  if(external_alert) free(external_alert);
   if(alert_status_info) free(alert_status_info);
 }
 
@@ -437,7 +438,7 @@ void Flow::processDetectedProtocol() {
 
       if(protos.dns.last_query) {
 	free(protos.dns.last_query);
-	protos.dns.invalid_query = false;
+	protos.dns.invalid_chars_in_query = false;
       }
       protos.dns.last_query = strdup((const char*)ndpiFlow->host_server_name);
       protos.dns.last_query_type = ndpiFlow->protos.dns.query_type;
@@ -445,12 +446,9 @@ void Flow::processDetectedProtocol() {
       for(int i = 0; protos.dns.last_query[i] != '\0'; i++) {
 	if(!isprint(protos.dns.last_query[i])) {
 	  protos.dns.last_query[i] = '?';
-	  protos.dns.invalid_query = true;
+	  protos.dns.invalid_chars_in_query = true;
 	}
       }
-
-      if(!protos.dns.invalid_query)
-	protos.dns.invalid_query = (strlen(protos.dns.last_query) > MAX_VALID_DNS_QUERY_LEN) ? true : false;
     }
     /* See Flow::processFullyDissectedProtocol for reply dissection */
     break;
@@ -1786,8 +1784,18 @@ void Flow::lua(lua_State* vm, AddressTree * ptree,
 
     lua_push_int32_table_entry(vm, "score", alert_score != CONST_NO_SCORE_SET ? alert_score : -1);
 
-    if(isICMP())
-      lua_get_icmp_info(vm);
+    if(isICMP()) {
+      lua_newtable(vm);
+      lua_push_uint64_table_entry(vm, "type", protos.icmp.icmp_type);
+      lua_push_uint64_table_entry(vm, "code", protos.icmp.icmp_code);
+
+      if(icmp_info)
+	icmp_info->lua(vm, NULL, iface, get_vlan_id());
+
+      lua_pushstring(vm, "icmp");
+      lua_insert(vm, -2);
+      lua_settable(vm, -3);
+    }
 
     lua_push_bool_table_entry(vm, "flow_goodput.low", isLowGoodput());
 
@@ -3560,12 +3568,6 @@ bool Flow::isTiny() const {
 
 /* ***************************************************** */
 
-bool Flow::isLongLived() const {
-  return ntop->getPrefs()->is_longlived_flow(this);
-}
-
-/* ***************************************************** */
-
 #ifdef HAVE_NEDGE
 void Flow::setPacketsBytes(time_t now, u_int32_t s2d_pkts, u_int32_t d2s_pkts,
 			   u_int64_t s2d_bytes, u_int64_t d2s_bytes) {
@@ -3883,6 +3885,11 @@ bool Flow::isLuaCallPerformed(FlowLuaCall flow_lua_call, const struct timeval *t
   
   switch(flow_lua_call) {
   case flow_lua_call_periodic_update:
+    if(trigger_periodic_update) {
+      /* periodic update was forced */
+      return(false);
+    }
+
     periodic_update_freq = iface->getFlowMaxIdle() * 5; /* 5 times the max flow idleness */
 
     if(already_called)
@@ -4104,6 +4111,9 @@ void Flow::lua_get_min_info(lua_State *vm) {
   if(srv_ip) lua_push_str_table_entry(vm, "srv.ip", srv_ip->print(buf, sizeof(buf)));
   lua_push_int32_table_entry(vm, "cli.port", get_cli_port());
   lua_push_int32_table_entry(vm, "srv.port", get_srv_port());
+  lua_push_bool_table_entry(vm, "cli.localhost", cli ? cli->isLocalHost() : false);
+  lua_push_bool_table_entry(vm, "srv.localhost", srv ? srv->isLocalHost() : false);
+  lua_push_int32_table_entry(vm, "duration", get_duration());
   lua_push_str_table_entry(vm, "proto.l4", get_protocol_name());
   lua_push_str_table_entry(vm, "proto.ndpi", get_detected_protocol_name(buf, sizeof(buf)));
   lua_push_str_table_entry(vm, "proto.ndpi_cat", get_protocol_category_name());
@@ -4111,6 +4121,73 @@ void Flow::lua_get_min_info(lua_State *vm) {
   lua_push_uint64_table_entry(vm, "srv2cli.bytes", stats.srv2cli_bytes);
   lua_push_uint64_table_entry(vm, "cli2srv.packets", stats.srv2cli_packets);
   lua_push_uint64_table_entry(vm, "srv2cli.packets", stats.srv2cli_packets);
+}
+
+/* ***************************************************** */
+
+void Flow::lua_get_tcp_packet_issues(lua_State *vm) {
+  bool isIdle = idle();
+  bool lowGoodput = isLowGoodput();
+
+  lua_newtable(vm);
+
+  if(isIdle && lowGoodput) {
+    lua_push_bool_table_entry(vm, "has_slow_data_exchange", true);
+  } else if(!isIdle && lowGoodput) {
+    if(isTCPReset() && !hasTCP3WHSCompleted())
+      lua_push_bool_table_entry(vm, "is_connection_refused", true);
+    else
+      lua_push_bool_table_entry(vm, "has_low_goodput", true);
+  }
+}
+
+/* ***************************************************** */
+
+void Flow::lua_get_tcp_stats(lua_State *vm) {
+  lua_newtable(vm);
+
+  lua_push_uint64_table_entry(vm, "cli2srv.retransmissions", stats.tcp_stats_s2d.pktRetr);
+  lua_push_uint64_table_entry(vm, "cli2srv.out_of_order", stats.tcp_stats_s2d.pktOOO);
+  lua_push_uint64_table_entry(vm, "cli2srv.lost", stats.tcp_stats_s2d.pktLost);
+  lua_push_uint64_table_entry(vm, "srv2cli.retransmissions", stats.tcp_stats_d2s.pktRetr);
+  lua_push_uint64_table_entry(vm, "srv2cli.out_of_order", stats.tcp_stats_d2s.pktOOO);
+  lua_push_uint64_table_entry(vm, "srv2cli.lost", stats.tcp_stats_d2s.pktLost);
+}
+
+/* ***************************************************** */
+
+void Flow::lua_duration_info(lua_State *vm) {
+  lua_newtable(vm);
+
+  lua_push_uint64_table_entry(vm, "first_seen", get_first_seen());
+  lua_push_uint64_table_entry(vm, "last_seen", get_first_seen());
+  lua_push_bool_table_entry(vm, "twh_over", twh_over);
+  lua_push_bool_table_entry(vm, "idle", idle());
+}
+
+/* ***************************************************** */
+
+void Flow::lua_device_protocol_allowed_info(lua_State *vm) {
+  DeviceProtoStatus cli_ps, srv_ps;
+  bool cli_allowed, srv_allowed;
+
+  lua_newtable(vm);
+
+  if(!cli_host || !srv_host)
+    return;
+
+  cli_ps = cli_host->getDeviceAllowedProtocolStatus(ndpiDetectedProtocol, true);
+  srv_ps = srv_host->getDeviceAllowedProtocolStatus(ndpiDetectedProtocol, false);
+  cli_allowed = (cli_ps == device_proto_allowed);
+  srv_allowed = (srv_ps == device_proto_allowed);
+
+  lua_push_bool_table_entry(vm, "cli.allowed", cli_allowed);
+  if(!cli_allowed)
+    lua_push_str_table_entry("cli.disallowed_proto", (cli_ps == device_proto_forbidden_app) ? ndpiDetectedProtocol.app_protocol : ndpiDetectedProtocol.master_protocol);
+
+  lua_push_bool_table_entry(vm, "srv.allowed", srv_allowed);
+  if(!srv_allowed)
+    lua_push_str_table_entry("srv.disallowed_proto", (srv_ps == device_proto_forbidden_app) ? ndpiDetectedProtocol.app_protocol : ndpiDetectedProtocol.master_protocol);
 }
 
 /* ***************************************************** */
@@ -4129,6 +4206,7 @@ void Flow::lua_get_unicast_info(lua_State* vm) const {
 
 void Flow::lua_get_ssl_info(lua_State *vm) const {
   if(isSSL()) {
+    lua_push_bool_table_entry)vm, "protos.ssl.subject_alt_name_match", protos.ssl.subject_alt_name_match);
     lua_push_int32_table_entry(vm, "protos.ssl_version", protos.ssl.ssl_version);
 
     if(protos.ssl.certificate)
@@ -4192,6 +4270,9 @@ void Flow::lua_get_dns_info(lua_State *vm) const {
       lua_push_uint64_table_entry(vm, "protos.dns.last_query_type", protos.dns.last_query_type);
       lua_push_uint64_table_entry(vm, "protos.dns.last_return_code", protos.dns.last_return_code);
       lua_push_str_table_entry(vm, "protos.dns.last_query", protos.dns.last_query);
+
+      if(protos.dns.invalid_chars_in_query)
+        lua_push_bool_table_entry(vm, "protos.dns.invalid_chars_in_query", protos.dns.invalid_chars_in_query);
     }
   }
 }
@@ -4199,18 +4280,14 @@ void Flow::lua_get_dns_info(lua_State *vm) const {
 /* ***************************************************** */
 
 void Flow::lua_get_icmp_info(lua_State *vm) const {
-  if(isICMP()) {
-    lua_newtable(vm);
-    lua_push_uint64_table_entry(vm, "type", protos.icmp.icmp_type);
-    lua_push_uint64_table_entry(vm, "code", protos.icmp.icmp_code);
+  lua_newtable(vm);
 
-    if(icmp_info)
-      icmp_info->lua(vm, NULL, iface, get_vlan_id());
+  if(!isICMP())
+    return;
 
-    lua_pushstring(vm, "icmp");
-    lua_insert(vm, -2);
-    lua_settable(vm, -3);
-  }
+  lua_push_int32_table_entry(vm, "type", protos.icmp.icmp_type);
+  lua_push_int32_table_entry(vm, "code", protos.icmp.icmp_code);
+  lua_push_int32_table_entry(vm, "max_payload_size", protos.icmp.max_icmp_payload_size);
 }
 
 /* ***************************************************** */
@@ -4307,6 +4384,7 @@ void Flow::performLuaCall(FlowLuaCall flow_lua_call, const struct timeval *tv, A
     lua_call_fn_name = FLOW_LUA_CALL_FLOW_STATUS_CHANGE_FN_NAME;
     break;
   case flow_lua_call_periodic_update:
+    trigger_periodic_update = false;
     lua_call_fn_name = FLOW_LUA_CALL_PERIODIC_UPDATE_FN_NAME;
     break;
   case flow_lua_call_idle:
@@ -4387,4 +4465,35 @@ void Flow::triggerAlert(FlowStatus status, AlertType atype, AlertLevel severity,
   alerted_status = status;
   alert_level = severity;
   alert_type = atype; /* set this as the last thing to avoid concurrency issues */
+}
+
+/* *************************************** */
+
+void Flow::setExternalAlert(json_object *a, u_int8_t severity) {
+  if(!external_alert) {
+    /* In order to avoid concurrency issues with the getter, at most
+     * 1 pending external alert is supported. */
+    external_alert = strdup(json_object_to_json_string(a));
+    external_alert_severity = severity;
+
+    /* Manually trigger a periodic update to process the alert */
+    trigger_periodic_update = true;
+  }
+
+  json_object_put(a);
+}
+
+/* *************************************** */
+
+void Flow::luaRetrieveExternalAlert(lua_State *vm) {
+  if(external_alert) {
+    lua_newtable(vm);
+    lua_push_str_table_entry("info", external_alert);
+    lua_push_int32_table_entry("severity", external_alert_severity);
+
+    /* Must delte the data to avoid returning it in the next call */
+    free(external_alert);
+    external_alert = NULL;
+  } else
+    lua_pushnil(vm);
 }

@@ -1472,12 +1472,7 @@ bool NetworkInterface::processPacket(u_int32_t bridge_iface_idx,
 	else
 	  icmp_v6.incStats(icmp_type, icmp_code, is_sent_packet, NULL);
 
-	/* https://www.boiteaklou.fr/Data-exfiltration-with-PING-ICMP-NDH16.html */
-	if((((icmp_type == ICMP_ECHO) || (icmp_type == ICMP_ECHOREPLY)) && /* ICMPv4 ECHO */
-	      (trusted_l4_packet_len > CONST_MAX_ACCEPTABLE_ICMP_V4_PAYLOAD_LENGTH)) ||
-	   (((icmp_type == 128) || (icmp_type == 129)) && /* ICMPv6 ECHO */
-	      (trusted_l4_packet_len > CONST_MAX_ACCEPTABLE_ICMP_V6_PAYLOAD_LENGTH)))
-	  flow->set_long_icmp_payload();
+	flow->setICMPPayloadSize(trusted_l4_packet_len);
       }
       break;
     }

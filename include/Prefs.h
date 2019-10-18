@@ -63,7 +63,6 @@ class Prefs {
   u_int32_t intf_rrd_raw_days, intf_rrd_1min_days, intf_rrd_1h_days, intf_rrd_1d_days;
   u_int32_t other_rrd_raw_days, other_rrd_1min_days, other_rrd_1h_days, other_rrd_1d_days;
   u_int32_t housekeeping_frequency;
-  u_int32_t longlived_flow_duration;
   bool disable_alerts, enable_top_talkers, enable_idle_local_hosts_cache,
     enable_active_local_hosts_cache;
   bool enable_flow_device_port_rrd_creation;
@@ -81,7 +80,6 @@ class Prefs {
   u_int32_t max_num_aggregated_flows_per_export;
   u_int32_t max_extracted_pcap_bytes;
   u_int32_t max_ui_strlen;
-  u_int64_t elephant_flow_remote_to_local_bytes, elephant_flow_local_to_remote_bytes;
   u_int8_t default_l7policy;
   u_int8_t num_ts_slots, ts_num_steps;
   HostMask hostMask;
@@ -141,8 +139,6 @@ class Prefs {
     }
   };
   bool getDefaultBoolPrefsValue(const char *pref_key, const bool default_value);
-  bool in_longlived_whitelist(const Flow * f) const;
-  bool in_elephant_whitelist(const Flow * f)  const;
 
  public:
   Prefs(Ntop *_ntop);
@@ -329,12 +325,6 @@ class Prefs {
   inline u_int32_t get_max_num_packets_per_tiny_flow()       const { return(max_num_packets_per_tiny_flow);       };
   inline u_int32_t get_max_num_bytes_per_tiny_flow()         const { return(max_num_bytes_per_tiny_flow);         };
   inline u_int32_t get_max_num_aggregated_flows_per_export() const { return(max_num_aggregated_flows_per_export); };
-  inline u_int64_t get_elephant_flow_remote_to_local_bytes() const { return(elephant_flow_remote_to_local_bytes); };
-  inline u_int64_t get_elephant_flow_local_to_remote_bytes() const { return(elephant_flow_local_to_remote_bytes); };
-  inline u_int32_t get_longlived_flow_duration()             const { return(longlived_flow_duration);             };
-
-  bool is_longlived_flow(const Flow *f) const;
-  bool is_elephant_flow(const Flow *f)   const;
 
   inline u_int64_t get_max_extracted_pcap_bytes() { return max_extracted_pcap_bytes; };
 

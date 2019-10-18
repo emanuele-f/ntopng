@@ -111,8 +111,9 @@ class Flow : public GenericHashEntry {
   u_int32_t last_conntrack_update; 
   u_int32_t marker;
 #endif
-  json_object *external_alert;
+  char *external_alert;
   u_int8_t external_alert_severity;
+  bool trigger_periodic_update;
  
   union {
     struct {
@@ -125,7 +126,7 @@ class Flow : public GenericHashEntry {
       char *last_query;
       u_int16_t last_query_type;
       u_int16_t last_return_code;
-      bool invalid_query;
+      bool invalid_chars_in_query;
     } dns;
 
     struct {
@@ -155,7 +156,7 @@ class Flow : public GenericHashEntry {
     struct {
       u_int8_t icmp_type, icmp_code;
       u_int16_t icmp_echo_id;
-      bool has_long_icmp_payload;
+      u_int16_t max_icmp_payload_size;
     } icmp;
   } protos;
 
@@ -278,7 +279,6 @@ class Flow : public GenericHashEntry {
   void freeDPIMemory();
   static const ndpi_protocol ndpiUnknownProtocol;
   bool isTiny() const;
-  bool isLongLived() const;
   inline bool isSSL()  const { return(isProto(NDPI_PROTOCOL_TLS));  }
   inline bool isSSH()  const { return(isProto(NDPI_PROTOCOL_SSH));  }
   inline bool isDNS()  const { return(isProto(NDPI_PROTOCOL_DNS));  }
@@ -404,8 +404,8 @@ class Flow : public GenericHashEntry {
   inline const IpAddress* get_srv_ip_addr() const { return(srv_ip_addr); };
   inline json_object* get_json_info()	    const  { return(json_info);                       };
   inline ndpi_serializer* get_tlv_info()	    const  { return(tlv_info);                       };
-  inline bool has_long_icmp_payload()    const  { return(protos.icmp.has_long_icmp_payload); };
-  inline void set_long_icmp_payload()           { protos.icmp.has_long_icmp_payload = true;  };
+  inline void setICMPPayloadSize(u_int16_t size)     { if(isICMP()) protos.icmp.max_icmp_payload_size = max(protos.icmp.max_icmp_payload_size, size); };
+  inline void getICMPPayloadSize()             const { return(isICMP() ? protos.icmp.max_icmp_payload_size : 0); };
   inline ndpi_protocol_breed_t get_protocol_breed() const {
     return(ndpi_get_proto_breed(iface->get_ndpi_struct(), isDetectionCompleted() ? ndpiDetectedProtocol.app_protocol : NDPI_PROTOCOL_UNKNOWN));
   };
@@ -455,6 +455,10 @@ class Flow : public GenericHashEntry {
 		       u_int16_t protocol);
   void lua(lua_State* vm, AddressTree * ptree, DetailsLevel details_level, bool asListElement);
   void lua_get_min_info(lua_State* vm);
+  void lua_get_tcp_packet_issues(lua_State* vm);
+  void lua_duration_info(lua_State* vm);
+  void lua_device_protocol_allowed_info(lua_State *vm);
+  void lua_get_icmp_info(lua_State *vm) const;
 
   void lua_get_unicast_info(lua_State* vm) const;
   void lua_get_status(lua_State* vm) const;
@@ -471,7 +475,6 @@ class Flow : public GenericHashEntry {
   void lua_get_ssh_info(lua_State *vm) const;
   void lua_get_http_info(lua_State *vm) const;
   void lua_get_dns_info(lua_State *vm) const;
-  void lua_get_icmp_info(lua_State *vm) const;
   void lua_get_tcp_info(lua_State *vm) const;
   void lua_get_port(lua_State *vm, bool client) const;
   void lua_get_geoloc(lua_State *vm, bool client, bool coords, bool country_city) const;
@@ -517,11 +520,8 @@ class Flow : public GenericHashEntry {
   inline char* getSSLCertificate()  { return(isSSL() ? protos.ssl.certificate : (char*)""); }
   bool isSSLProto();
 
-  inline void setExternalAlert(json_object *a, u_int8_t severity) { 
-    if (external_alert) json_object_put(external_alert); 
-    external_alert = a; external_alert_severity = severity; };
-  inline json_object *getExternalAlert()     const { return external_alert; };
-  inline u_int8_t getExternalAlertSeverity() const { return external_alert_severity; };
+  void setExternalAlert(json_object *a, u_int8_t severity);
+  void luaRetrieveExternalAlert(lua_State *vm);
 
 #if defined(NTOPNG_PRO) && !defined(HAVE_NEDGE)
   inline void updateProfile()     { trafficProfile = iface->getFlowProfile(this); }
@@ -620,6 +620,13 @@ class Flow : public GenericHashEntry {
   inline const TcpInfo* getServerTcpInfo() const {
     return srv_ebpf && srv_ebpf->tcp_info_set ? &srv_ebpf->tcp_info : NULL;
   }
+
+  inline bool isNotPurged() {
+    return(getInterface()->isPacketInterface() && getInterface()->is_purge_idle_interface()
+     && !idle() && isIdle(10 * getInterface()->getFlowMaxIdle()));
+  }
+
+  inline u_int16_t getSSLVersion()  { return(isSSL() ? (protos.ssl.ssl_version) : 0); }
 };
 
 #endif /* _FLOW_H_ */

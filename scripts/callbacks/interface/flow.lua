@@ -30,6 +30,7 @@ local benchmarks = {}
 -- Keeps information about the current predominant alerted status
 local alerted_status
 local alerted_status_msg
+local alerted_custom_severity
 local predominant_status
 local recalculate_predominant_status
 
@@ -116,6 +117,7 @@ local function call_modules(l4_proto, mod_fn)
    -- Reset predominant status information
    alerted_status = nil
    alerted_status_msg = nil
+   alerted_custom_severity = nil
    recalculate_predominant_status = false
    predominant_status = prev_predominant_status
 
@@ -164,7 +166,8 @@ local function call_modules(l4_proto, mod_fn)
             alertTypeRaw(alerted_status.alert_type.alert_id), alertSeverityRaw(alerted_status.alert_severity.severity_id)))
       end
 
-      flow.triggerAlert(alerted_status.status_id, alerted_status.alert_type.alert_id, alerted_status.alert_severity.severity_id, alerted_status_msg)
+      flow.triggerAlert(alerted_status.status_id, alerted_status.alert_type.alert_id,
+         alerted_custom_severity or alerted_status.alert_severity.severity_id, alerted_status_msg)
    end
 
    return(rv)
@@ -175,13 +178,14 @@ end
 -- @brief This provides an API that flow user_scripts can call in order to
 -- set a flow status bit. The status_json of the predominant status is
 -- saved for later use.
-function flow.triggerStatus(status_id, status_json)
+function flow.triggerStatus(status_id, status_json, custom_severity)
    local new_status = flow_consts.getStatusInfo(status_id)
 
    if((alerted_status == nil) or (new_status.prio > alerted_status.prio)) then
       -- The new alerted status as an higher priority
       alerted_status = new_status
       alerted_status_msg = status_json
+      alerted_custom_severity = custom_severity -- possibly nil
    end
 
    -- Call the function below to handle the predominant status and update

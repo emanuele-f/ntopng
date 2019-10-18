@@ -206,10 +206,6 @@
 #define TRAFFIC_FILTERING_CACHE_DURATION  43200 /* 12 h */
 #define DNS_CACHE_DURATION                 3600  /*  1 h */
 #define LOCAL_HOSTS_CACHE_DURATION         3600  /*  1 h */
-#define CONST_ALERT_PROBING_TIME            120  /* 2 mins */
-#define CONST_TCP_CHECK_ISSUES_THRESHOLD      5  /* min 5 retr/ooo/lost packets */
-#define CONST_TCP_CHECK_ISSUES_RATIO         10  /* 1/10 */
-#define CONST_TCP_CHECK_SEVERE_ISSUES_RATIO   3  /* 1/3 */
 #define HOST_LABEL_NAMES        "ntopng.host_labels"
 #define IFACE_DHCP_RANGE_KEY    "ntopng.prefs.ifid_%u.dhcp_ranges"
 #define HOST_SERIALIZED_KEY     "ntopng.serialized_hosts.ifid_%u__%s@%d"
@@ -623,8 +619,6 @@
 #define CONST_RUNTIME_PREFS_HOSTMASK  NTOPNG_PREFS_PREFIX".host_mask"
 #define CONST_RUNTIME_PREFS_AUTO_ASSIGNED_POOL_ID      NTOPNG_PREFS_PREFIX".auto_assigned_pool_id"
 
-#define CONST_MAX_ACCEPTABLE_ICMP_V4_PAYLOAD_LENGTH 128
-#define CONST_MAX_ACCEPTABLE_ICMP_V6_PAYLOAD_LENGTH 256
 #define CONST_MAX_ALERT_MSG_QUEUE_LEN 8192
 #define CONST_MAX_ES_MSG_QUEUE_LEN    8192
 #define CONST_MAX_MYSQL_QUEUE_LEN     8192
@@ -671,9 +665,6 @@
 #define CONST_DEFAULT_IS_AGGR_FLOWS_EXPORT_LIMIT_ENABLED false /* exports all the aggregated flows by default */
 #define CONST_DEFAULT_MAX_NUM_PACKETS_PER_TINY_FLOW 3
 #define CONST_DEFAULT_MAX_NUM_BYTES_PER_TINY_FLOW   64 /* Empty TCP */
-#define CONST_DEFAULT_ELEPHANT_FLOW_LOCAL_TO_REMOTE_BYTES (1024*1024*1024) /* 1 GB */
-#define CONST_DEFAULT_ELEPHANT_FLOW_REMOTE_TO_LOCAL_BYTES (1024*1024*1024) /* 1 GB */
-#define CONST_DEFAULT_LONGLIVED_FLOW_DURATION (12*60*60) /* 12h */
 #define CONST_IS_AGGR_FLOWS_EXPORT_LIMIT_ENABLED   NTOPNG_PREFS_PREFIX".aggregated_flows_export_limit_enabled"
 #define CONST_MAX_NUM_AGGR_FLOWS_PER_EXPORT        NTOPNG_PREFS_PREFIX".max_num_aggregated_flows_per_export"
 #define CONST_IS_TINY_FLOW_EXPORT_ENABLED          NTOPNG_PREFS_PREFIX".tiny_flows_export_enabled"
@@ -1005,7 +996,6 @@ extern struct ntopngLuaContext* getUserdata(struct lua_State *vm);
 #define CONST_MAX_NUM_HOST_USES    8
 
 #define MAX_CHECKPOINT_COMPRESSION_BUFFER_SIZE 1024
-#define MAX_VALID_DNS_QUERY_LEN     96
 
 /* Keep in sync with nProbe */
 #define MAX_ZMQ_FLOW_BUF             4096

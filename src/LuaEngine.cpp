@@ -8537,6 +8537,111 @@ static int ntop_flow_serialize_server_by_mac(lua_State* vm) {
 
 /* ****************************************** */
 
+static int ntop_flow_is_not_purged(lua_State* vm) {
+  Flow *f = ntop_flow_get_context_flow(vm);
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  lua_pushboolean(vm, f->isNotPurged());
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_flow_get_ssl_version(lua_State* vm) {
+  Flow *f = ntop_flow_get_context_flow(vm);
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  lua_pushinteger(vm, f->getSSLVersion());
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_flow_get_tcp_packet_issues(lua_State* vm) {
+  Flow *f = ntop_flow_get_context_flow(vm);
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  f->lua_get_tcp_packet_issues(vm);
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_flow_get_tcp_stats(lua_State* vm) {
+  Flow *f = ntop_flow_get_context_flow(vm);
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  f->lua_get_tcp_stats(vm);
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_flow_is_pass_verdict(lua_State* vm) {
+  Flow *f = ntop_flow_get_context_flow(vm);
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  lua_pushboolean(vm, f->isPassVerdict());
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_flow_get_duration_info(lua_State* vm) {
+  Flow *f = ntop_flow_get_context_flow(vm);
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  f->lua_duration_info(vm);
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_flow_get_proto_breed_info(lua_State* vm) {
+  Flow *f = ntop_flow_get_context_flow(vm);
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  lua_newtable(vm);
+  lua_push_str_table_entry(vm, "proto.ndpi_breed", f->get_protocol_breed_name());
+
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_flow_retrieve_external_alert_info(lua_State* vm) {
+  Flow *f = ntop_flow_get_context_flow(vm);
+  json_object *ext_alert;
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  f->luaRetrieveExternalAlert(vm);
+
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_flow_get_device_proto_allowed_info(lua_State* vm) {
+  Flow *f = ntop_flow_get_context_flow(vm);
+  json_object *ext_alert;
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  f->lua_device_protocol_allowed_info(vm);
+
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
 static int ntop_flow_get_peer_score(lua_State* vm, bool client) {
   Flow *f = ntop_flow_get_context_flow(vm);
   Host *host;
@@ -8871,7 +8976,7 @@ static int  ntop_flow_get_http_info(lua_State* vm) {
 
 /* ****************************************** */
 
-static int  ntop_flow_get_dns_info(lua_State* vm) {
+static int ntop_flow_get_dns_info(lua_State* vm) {
   Flow *f = ntop_flow_get_context_flow(vm);
 
   lua_newtable(vm);
@@ -8883,24 +8988,12 @@ static int  ntop_flow_get_dns_info(lua_State* vm) {
 
 /* ****************************************** */
 
-static int  ntop_flow_get_icmp_info(lua_State* vm) {
+static int ntop_flow_get_icmp_info(lua_State* vm) {
   Flow *f = ntop_flow_get_context_flow(vm);
 
   lua_newtable(vm);
 
   if(f) f->lua_get_icmp_info(vm);
-
-  return CONST_LUA_OK;
-}
-
-/* ****************************************** */
-
-static int  ntop_flow_get_tcp_info(lua_State* vm) {
-  Flow *f = ntop_flow_get_context_flow(vm);
-
-  lua_newtable(vm);
-
-  if(f) f->lua_get_tcp_info(vm);
 
   return CONST_LUA_OK;
 }
@@ -10293,7 +10386,15 @@ static const luaL_Reg ntop_flow_reg[] = {
   { "getServerMUDPref",         ntop_flow_get_server_mud_pref        },
   { "serializeClientByMac",     ntop_flow_serialize_client_by_mac    },
   { "serializeServerByMac",     ntop_flow_serialize_server_by_mac    },
-
+  { "isNotPurged",              ntop_flow_is_not_purged              },
+  { "getSSLVersion",            ntop_flow_get_ssl_version            },
+  { "getTCPPacketIssues",       ntop_flow_get_tcp_packet_issues      },
+  { "getTCPStats",              ntop_flow_get_tcp_stats              },
+  { "isPassVerdict",            ntop_flow_is_pass_verdict            },
+  { "getDurationInformation",   ntop_flow_get_duration_info          },
+  { "getProtocolBreedInfo",     ntop_flow_get_proto_breed_info       },
+  { "retrieveExternalAlertInfo", ntop_flow_retrieve_external_alert_info },
+  { "getDeviceProtoAllowedInfo", ntop_flow_get_device_proto_allowed_info},
   { "getProtocols",             ntop_flow_get_protocols              },
   { "getBytes",                 ntop_flow_get_bytes                  },
   { "getClient2ServerTraffic",  ntop_flow_get_cli2srv_traffic        },
@@ -10307,7 +10408,6 @@ static const luaL_Reg ntop_flow_reg[] = {
   { "getHTTPInfo",              ntop_flow_get_http_info              },
   { "getDNSInfo",               ntop_flow_get_dns_info               },
   { "getICMPInfo",              ntop_flow_get_icmp_info              },
-  { "getTCPInfo",               ntop_flow_get_tcp_info               },
   { "getClientPort",            ntop_flow_get_cli_port               },
   { "getServerPort",            ntop_flow_get_srv_port               },
   { "getClientGeolocation",     ntop_flow_get_cli_geoloc             },
