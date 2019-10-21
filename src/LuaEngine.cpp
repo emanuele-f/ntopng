@@ -8581,6 +8581,8 @@ static int ntop_flow_get_tcp_stats(lua_State* vm) {
 
 /* ****************************************** */
 
+#ifdef HAVE_NEDGE
+
 static int ntop_flow_is_pass_verdict(lua_State* vm) {
   Flow *f = ntop_flow_get_context_flow(vm);
 
@@ -8589,6 +8591,8 @@ static int ntop_flow_is_pass_verdict(lua_State* vm) {
   lua_pushboolean(vm, f->isPassVerdict());
   return(CONST_LUA_OK);
 }
+
+#endif
 
 /* ****************************************** */
 
@@ -8618,7 +8622,6 @@ static int ntop_flow_get_proto_breed_info(lua_State* vm) {
 
 static int ntop_flow_retrieve_external_alert_info(lua_State* vm) {
   Flow *f = ntop_flow_get_context_flow(vm);
-  json_object *ext_alert;
 
   if(!f) return(CONST_LUA_ERROR);
 
@@ -8631,7 +8634,6 @@ static int ntop_flow_retrieve_external_alert_info(lua_State* vm) {
 
 static int ntop_flow_get_device_proto_allowed_info(lua_State* vm) {
   Flow *f = ntop_flow_get_context_flow(vm);
-  json_object *ext_alert;
 
   if(!f) return(CONST_LUA_ERROR);
 
@@ -10390,7 +10392,9 @@ static const luaL_Reg ntop_flow_reg[] = {
   { "getSSLVersion",            ntop_flow_get_ssl_version            },
   { "getTCPPacketIssues",       ntop_flow_get_tcp_packet_issues      },
   { "getTCPStats",              ntop_flow_get_tcp_stats              },
+#ifdef HAVE_NEDGE
   { "isPassVerdict",            ntop_flow_is_pass_verdict            },
+#endif
   { "getDurationInformation",   ntop_flow_get_duration_info          },
   { "getProtocolBreedInfo",     ntop_flow_get_proto_breed_info       },
   { "retrieveExternalAlertInfo", ntop_flow_retrieve_external_alert_info },

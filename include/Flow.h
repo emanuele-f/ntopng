@@ -405,7 +405,7 @@ class Flow : public GenericHashEntry {
   inline json_object* get_json_info()	    const  { return(json_info);                       };
   inline ndpi_serializer* get_tlv_info()	    const  { return(tlv_info);                       };
   inline void setICMPPayloadSize(u_int16_t size)     { if(isICMP()) protos.icmp.max_icmp_payload_size = max(protos.icmp.max_icmp_payload_size, size); };
-  inline void getICMPPayloadSize()             const { return(isICMP() ? protos.icmp.max_icmp_payload_size : 0); };
+  inline u_int16_t getICMPPayloadSize()             const { return(isICMP() ? protos.icmp.max_icmp_payload_size : 0); };
   inline ndpi_protocol_breed_t get_protocol_breed() const {
     return(ndpi_get_proto_breed(iface->get_ndpi_struct(), isDetectionCompleted() ? ndpiDetectedProtocol.app_protocol : NDPI_PROTOCOL_UNKNOWN));
   };
@@ -459,6 +459,7 @@ class Flow : public GenericHashEntry {
   void lua_duration_info(lua_State* vm);
   void lua_device_protocol_allowed_info(lua_State *vm);
   void lua_get_icmp_info(lua_State *vm) const;
+  void lua_get_tcp_stats(lua_State *vm) const;
 
   void lua_get_unicast_info(lua_State* vm) const;
   void lua_get_status(lua_State* vm) const;

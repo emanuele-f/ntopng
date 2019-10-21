@@ -4111,8 +4111,8 @@ void Flow::lua_get_min_info(lua_State *vm) {
   if(srv_ip) lua_push_str_table_entry(vm, "srv.ip", srv_ip->print(buf, sizeof(buf)));
   lua_push_int32_table_entry(vm, "cli.port", get_cli_port());
   lua_push_int32_table_entry(vm, "srv.port", get_srv_port());
-  lua_push_bool_table_entry(vm, "cli.localhost", cli ? cli->isLocalHost() : false);
-  lua_push_bool_table_entry(vm, "srv.localhost", srv ? srv->isLocalHost() : false);
+  lua_push_bool_table_entry(vm, "cli.localhost", cli_host ? cli_host->isLocalHost() : false);
+  lua_push_bool_table_entry(vm, "srv.localhost", srv_host ? srv_host->isLocalHost() : false);
   lua_push_int32_table_entry(vm, "duration", get_duration());
   lua_push_str_table_entry(vm, "proto.l4", get_protocol_name());
   lua_push_str_table_entry(vm, "proto.ndpi", get_detected_protocol_name(buf, sizeof(buf)));
@@ -4143,7 +4143,7 @@ void Flow::lua_get_tcp_packet_issues(lua_State *vm) {
 
 /* ***************************************************** */
 
-void Flow::lua_get_tcp_stats(lua_State *vm) {
+void Flow::lua_get_tcp_stats(lua_State *vm) const {
   lua_newtable(vm);
 
   lua_push_uint64_table_entry(vm, "cli2srv.retransmissions", stats.tcp_stats_s2d.pktRetr);
@@ -4183,11 +4183,11 @@ void Flow::lua_device_protocol_allowed_info(lua_State *vm) {
 
   lua_push_bool_table_entry(vm, "cli.allowed", cli_allowed);
   if(!cli_allowed)
-    lua_push_str_table_entry("cli.disallowed_proto", (cli_ps == device_proto_forbidden_app) ? ndpiDetectedProtocol.app_protocol : ndpiDetectedProtocol.master_protocol);
+    lua_push_int32_table_entry(vm, "cli.disallowed_proto", (cli_ps == device_proto_forbidden_app) ? ndpiDetectedProtocol.app_protocol : ndpiDetectedProtocol.master_protocol);
 
   lua_push_bool_table_entry(vm, "srv.allowed", srv_allowed);
   if(!srv_allowed)
-    lua_push_str_table_entry("srv.disallowed_proto", (srv_ps == device_proto_forbidden_app) ? ndpiDetectedProtocol.app_protocol : ndpiDetectedProtocol.master_protocol);
+    lua_push_int32_table_entry(vm, "srv.disallowed_proto", (srv_ps == device_proto_forbidden_app) ? ndpiDetectedProtocol.app_protocol : ndpiDetectedProtocol.master_protocol);
 }
 
 /* ***************************************************** */
@@ -4206,7 +4206,7 @@ void Flow::lua_get_unicast_info(lua_State* vm) const {
 
 void Flow::lua_get_ssl_info(lua_State *vm) const {
   if(isSSL()) {
-    lua_push_bool_table_entry)vm, "protos.ssl.subject_alt_name_match", protos.ssl.subject_alt_name_match);
+    lua_push_bool_table_entry(vm, "protos.ssl.subject_alt_name_match", protos.ssl.subject_alt_name_match);
     lua_push_int32_table_entry(vm, "protos.ssl_version", protos.ssl.ssl_version);
 
     if(protos.ssl.certificate)
@@ -4488,8 +4488,8 @@ void Flow::setExternalAlert(json_object *a, u_int8_t severity) {
 void Flow::luaRetrieveExternalAlert(lua_State *vm) {
   if(external_alert) {
     lua_newtable(vm);
-    lua_push_str_table_entry("info", external_alert);
-    lua_push_int32_table_entry("severity", external_alert_severity);
+    lua_push_str_table_entry(vm, "info", external_alert);
+    lua_push_int32_table_entry(vm, "severity", external_alert_severity);
 
     /* Must delte the data to avoid returning it in the next call */
     free(external_alert);

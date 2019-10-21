@@ -99,7 +99,9 @@ function teardown()
       print("flow.lua:teardown() called\n")
    end
 
-   user_scripts.teardown(available_modules, do_benchmark, do_print_benchmark)
+   if(available_modules ~= nil) then
+      user_scripts.teardown(available_modules, do_benchmark, do_print_benchmark)
+   end
 end
 
 -- #################################################################
@@ -110,6 +112,10 @@ end
 -- @param mod_fn the callback to call
 -- @return true if some module was called, false otherwise
 local function call_modules(l4_proto, mod_fn)
+   if not(available_modules) then
+      return
+   end
+
    local hooks = available_modules.l4_hooks[l4_proto]
    local rv = false
    local prev_predominant_status = flow_consts.getStatusInfo(flow.getPredominantStatus())

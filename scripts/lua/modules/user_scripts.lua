@@ -2,7 +2,7 @@
 -- (C) 2019 - ntop.org
 --
 
--- Check modules provide a scriptable way to interact with the ntopng
+-- User scripts provide a scriptable way to interact with the ntopng
 -- core. Users can provide their own modules to trigger custom alerts,
 -- export data, or perform periodic tasks.
 
@@ -87,7 +87,7 @@ end
 
 -- ##############################################
 
--- @brief Enables a check module
+-- @brief Enables a user script
 function user_scripts.enableModule(ifid, subdir, module_key)
    local hkey = getCheckModuleConfHash(ifid, subdir, module_key)
    ntop.delHashCache(hkey, "disabled")
@@ -95,7 +95,7 @@ end
 
 -- ##############################################
 
--- @brief Disables a check module
+-- @brief Disables a user script
 function user_scripts.disableModule(ifid, subdir, module_key)
    local hkey = getCheckModuleConfHash(ifid, subdir, module_key)
    ntop.setHashCache(hkey, "disabled", "1")
@@ -103,7 +103,7 @@ end
 
 -- ##############################################
 
--- @brief Checks if a check module is enabled.
+-- @brief Checks if a user script is enabled.
 -- @return true if disabled, false otherwise
 -- @notes Modules are neabled by default. The user can manually turn them off.
 function user_scripts.isEnabled(ifid, subdir, module_key)
@@ -113,7 +113,7 @@ end
 
 -- ##############################################
 
--- @brief Get the default configuration value for the given check module
+-- @brief Get the default configuration value for the given user script
 -- and granularity.
 -- @param user_script a user_script returned by user_scripts.load
 -- @param granularity_str the target granularity
@@ -243,12 +243,12 @@ end
 
 -- ##############################################
 
--- @brief Load the check modules.
+-- @brief Load the user scripts.
 -- @params script_type one of user_scripts.script_types
 -- @params ifid the interface ID
 -- @params subdir the modules subdir
--- @params hook_filter if non nil, only load the check modules for the specified hook
--- @params ignore_disabled if true, also returns disabled check modules
+-- @params hook_filter if non nil, only load the user scripts for the specified hook
+-- @params ignore_disabled if true, also returns disabled user scripts
 -- @param do_benchmark if true, computes benchmarks for every hook
 -- @return {modules = key->user_script, hooks = user_script->function}
 function user_scripts.load(script_type, ifid, subdir, hook_filter, ignore_disabled, do_benchmark)
@@ -264,6 +264,10 @@ function user_scripts.load(script_type, ifid, subdir, hook_filter, ignore_disabl
    if ntop.isPro() then
       check_dirs[#check_dirs + 1] = user_scripts.getSubdirectoryPath(script_type, subdir, true --[[ pro ]])
       check_dirs[#check_dirs + 1] = user_scripts.getSubdirectoryPath(script_type, subdir, true --[[ pro ]]) .. "/alerts"
+
+      if ntop.isEnterprise() then
+         check_dirs[#check_dirs + 1] = user_scripts.getSubdirectoryPath(script_type, subdir, true --[[ pro ]]) .. "/enterprise"
+      end
    end
 
    for _, hook in pairs(script_type.hooks) do
@@ -281,14 +285,15 @@ function user_scripts.load(script_type, ifid, subdir, hook_filter, ignore_disabl
             local user_script = require(mod_fname)
             local setup_ok = true
 
-            traceError(TRACE_DEBUG, TRACE_CONSOLE, string.format("Loading check module '%s'", mod_fname))
+            traceError(TRACE_DEBUG, TRACE_CONSOLE, string.format("Loading user script '%s'", mod_fname))
 
-            if(user_script == nil) then
+            if(type(user_script) ~= "table") then
                traceError(TRACE_ERROR, TRACE_CONSOLE, string.format("Loading '%s' failed", checks_dir.."/"..fname))
+               goto next_module
             end
 
             if(user_script.key == nil) then
-               traceError(TRACE_ERROR, TRACE_CONSOLE, string.format("Missing 'key' in check module '%s'", mod_fname))
+               traceError(TRACE_ERROR, TRACE_CONSOLE, string.format("Missing 'key' in user script '%s'", mod_fname))
                goto next_module
             end
 
@@ -302,7 +307,7 @@ function user_scripts.load(script_type, ifid, subdir, hook_filter, ignore_disabl
             end
 
             if(table.empty(user_script.hooks)) then
-               traceError(TRACE_WARNING, TRACE_CONSOLE, string.format("No 'hooks' defined in check module '%s'", user_script.key))
+               traceError(TRACE_WARNING, TRACE_CONSOLE, string.format("No 'hooks' defined in user script '%s'", user_script.key))
                -- This guarantees that the "hooks" field is always available
                user_script.hooks = {}
             end
