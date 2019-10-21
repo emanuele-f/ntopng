@@ -23,7 +23,7 @@ end
 -- #################################################################
 
 function script.hooks.protocolDetected(params)
-  local info = flow.getInfo()
+  local info = params.flow_info
 
   if(info["proto.ndpi_cat"] == "Mining") then
     flow.triggerStatus(flow_consts.status_types.status_web_mining_detected.status_id)

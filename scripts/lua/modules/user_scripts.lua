@@ -255,6 +255,11 @@ function user_scripts.load(script_type, ifid, subdir, hook_filter, ignore_disabl
    local rv = {modules = {}, hooks = {}}
    local is_nedge = ntop.isnEdge()
    local alerts_disabled = (not areAlertsEnabled())
+   local old_ifid = interface.getId()
+
+   if(old_ifid ~= ifid) then
+      interface.select(ifid) -- required for interface.isPacketInterface() below
+   end
 
    local check_dirs = {
       user_scripts.getSubdirectoryPath(script_type, subdir),
@@ -302,7 +307,11 @@ function user_scripts.load(script_type, ifid, subdir, hook_filter, ignore_disabl
                goto next_module
             end
 
-            if(user_script.nedge_exclude and is_nedge) then
+            if(user_script.packet_interface_only and (not interface.isPacketInterface())) then
+               traceError(TRACE_DEBUG, TRACE_CONSOLE, string.format("Skipping module '%s' for non packet interface", user_script.key))
+            end
+
+            if((user_script.nedge_exclude and is_nedge) or (user_script.nedge_only and (not is_nedge))) then
                goto next_module
             end
 
@@ -381,6 +390,10 @@ function user_scripts.load(script_type, ifid, subdir, hook_filter, ignore_disabl
 
          ::next_module::
       end
+   end
+
+   if(old_ifid ~= ifid) then
+      interface.select(old_ifid)
    end
 
    return(rv)

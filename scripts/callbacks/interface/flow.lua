@@ -116,6 +116,7 @@ local function call_modules(l4_proto, mod_fn)
       return
    end
 
+   local all_modules = available_modules.modules
    local hooks = available_modules.l4_hooks[l4_proto]
    local rv = false
    local prev_predominant_status = flow_consts.getStatusInfo(flow.getPredominantStatus())
@@ -138,19 +139,33 @@ local function call_modules(l4_proto, mod_fn)
 
    if(do_trace) then print(string.format("%s()[START]: bitmap=0x%x predominant=%d", mod_fn, flow.getStatus(), prev_predominant_status.status_id)) end
 
-   -- TODO too expensive, remove
-   local info = flow.getFullInfo()
+   -- NOTE: this information is required by many modules, provide it to all of them
+   local info = flow.getInfo()
 
    local params = {
-      -- Flow specific information
       flow_info = info,
+      now = os.time(),
    }
 
    for mod_key, hook_fn in pairs(hooks) do
+      local script = all_modules[mod_key]
+
+      if(script.l7_proto ~= nil) then
+         -- Check if the L7 protocol correspond
+         local flow_proto = info["proto.ndpi"]
+
+         if(string.find(flow_proto, script.l7_proto) == nil) then
+            if do_trace then print(string.format("%s() [check: %s]: skipping flow with proto=%s (wants %s)\n", mod_fn, mod_key, flow_proto, script.l7_proto)) end
+            goto continue
+         end
+      end
+
       if do_trace then print(string.format("%s() [check: %s]: %s\n", mod_fn, mod_key, shortFlowLabel(info))) end
 
       hook_fn(params)
       rv = true
+
+      ::continue::
    end
 
    if(recalculate_predominant_status) then

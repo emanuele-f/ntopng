@@ -28,7 +28,7 @@ local script = {
 -- #################################################################
 
 function script.hooks.all(params)
-   local info = flow.getInfo()
+   local info = params.flow_info
 
    if(info["packets.rcvd"] == 0) then
       local info = flow.getUnicastInfo()

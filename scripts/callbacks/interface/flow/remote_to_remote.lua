@@ -23,7 +23,7 @@ end
 -- #################################################################
 
 function script.hooks.protocolDetected(params)
-  local info = flow.getInfo()
+  local info = params.flow_info
 
   if((not info["cli.localhost"]) and (not info["srv.localhost"])) then
     local unicast_info = flow.getUnicastInfo()

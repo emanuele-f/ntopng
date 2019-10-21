@@ -8481,6 +8481,17 @@ static int ntop_flow_set_score(lua_State* vm) {
 
 /* ****************************************** */
 
+static int ntop_flow_get_score(lua_State* vm) {
+  Flow *f = ntop_flow_get_context_flow(vm);
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  lua_pushinteger(vm, f->getScore());
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
 static int ntop_flow_set_peer_score(lua_State* vm, bool client) {
   Flow *f = ntop_flow_get_context_flow(vm);
   int score;
@@ -8508,31 +8519,6 @@ static int ntop_flow_set_client_score(lua_State* vm) {
 
 static int ntop_flow_set_server_score(lua_State* vm) {
   return(ntop_flow_set_peer_score(vm, false /* server */));
-}
-
-/* ****************************************** */
-
-static int ntop_flow_serialize_peer_by_mac(lua_State* vm, bool client) {
-  Flow *f = ntop_flow_get_context_flow(vm);
-  Host *host;
-
-  if(!f) return(CONST_LUA_ERROR);
-
-  host = client ? f->get_cli_host() : f->get_srv_host();
-
-  if(!host)
-    return(CONST_LUA_ERROR);
-
-  lua_pushboolean(vm, host->serializeByMac());
-  return(CONST_LUA_OK);
-}
-
-static int ntop_flow_serialize_client_by_mac(lua_State* vm) {
-  return(ntop_flow_serialize_peer_by_mac(vm, true /* client */));
-}
-
-static int ntop_flow_serialize_server_by_mac(lua_State* vm) {
-  return(ntop_flow_serialize_peer_by_mac(vm, false /* server */));
 }
 
 /* ****************************************** */
@@ -8670,47 +8656,44 @@ static int ntop_flow_get_server_score(lua_State* vm) {
 
 /* ****************************************** */
 
-static int ntop_flow_get_peer_mud_pref(lua_State* vm, bool client) {
+static const char* mud_pref_2_str(MudRecording mud_pref) {
+  switch(mud_pref) {
+  case mud_recording_general_purpose:
+    return(MUD_RECORDING_GENERAL_PURPOSE);
+  case mud_recording_special_purpose:
+    return(MUD_RECORDING_SPECIAL_PURPOSE);
+  default:
+    return(MUD_RECORDING_DISABLED);
+  }
+}
+
+static int ntop_flow_get_mud_info(lua_State* vm) {
   Flow *f = ntop_flow_get_context_flow(vm);
-  Host *host;
-  MudRecording mud_pref;
-  const char *val;
+  Host *cli_host, *srv_host;
+  char buf[32];
 
   if(!f) return(CONST_LUA_ERROR);
 
-  host = client ? f->get_cli_host() : f->get_srv_host();
+  lua_newtable(vm);
 
-  if(!host)
-    return(CONST_LUA_ERROR);
+  cli_host = f->get_cli_host();
+  srv_host = f->get_cli_host();
 
-  mud_pref = host->getMUDRecording();
+  if(!cli_host || !srv_host)
+    return(CONST_LUA_OK);
 
-  switch(mud_pref) {
-  case mud_recording_general_purpose:
-    val = MUD_RECORDING_GENERAL_PURPOSE;
-    break;
-  case mud_recording_special_purpose:
-    val = MUD_RECORDING_SPECIAL_PURPOSE;
-    break;
-  default:
-    val = MUD_RECORDING_DISABLED;
-  }
+  lua_push_str_table_entry(vm, "host_server_name", f->getFlowServerInfo());
+  lua_push_str_table_entry(vm, "protos.dns.last_query", f->getDNSQuery());
+  lua_push_bool_table_entry(vm, "is_local", cli_host->isLocalHost() && srv_host->isLocalHost());
 
-  lua_pushstring(vm, val);
+  lua_push_str_table_entry(vm, "cli.mud_recording", mud_pref_2_str(cli_host->getMUDRecording()));
+  lua_push_str_table_entry(vm, "srv.mud_recording", mud_pref_2_str(srv_host->getMUDRecording()));
+  lua_push_bool_table_entry(vm, "cli.serialize_by_mac", cli_host->serializeByMac());
+  lua_push_bool_table_entry(vm, "srv.serialize_by_mac", srv_host->serializeByMac());
+  lua_push_str_table_entry(vm, "cli.mac", Utils::formatMac(cli_host->get_mac(), buf, sizeof(buf)));
+  lua_push_str_table_entry(vm, "srv.mac", Utils::formatMac(srv_host->get_mac(), buf, sizeof(buf)));
 
   return(CONST_LUA_OK);
-}
-
-/* ****************************************** */
-
-static int ntop_flow_get_client_mud_pref(lua_State* vm) {
-  return(ntop_flow_get_peer_mud_pref(vm, true /* client */));
-}
-
-/* ****************************************** */
-
-static int ntop_flow_get_server_mud_pref(lua_State* vm) {
-  return(ntop_flow_get_peer_mud_pref(vm, false /* server */));
 }
 
 /* ****************************************** */
@@ -10380,14 +10363,12 @@ static const luaL_Reg ntop_flow_reg[] = {
   /* TODO document */
   { "isLocal",                  ntop_flow_is_local                   },
   { "setScore",                 ntop_flow_set_score                  },
+  { "getScore",                 ntop_flow_get_score                  },
   { "getClientScore",           ntop_flow_get_client_score           },
   { "getServerScore",           ntop_flow_get_server_score           },
   { "setClientScore",           ntop_flow_set_client_score           },
   { "setServerScore",           ntop_flow_set_server_score           },
-  { "getClientMUDPref",         ntop_flow_get_client_mud_pref        },
-  { "getServerMUDPref",         ntop_flow_get_server_mud_pref        },
-  { "serializeClientByMac",     ntop_flow_serialize_client_by_mac    },
-  { "serializeServerByMac",     ntop_flow_serialize_server_by_mac    },
+  { "getMUDInfo",               ntop_flow_get_mud_info               },
   { "isNotPurged",              ntop_flow_is_not_purged              },
   { "getSSLVersion",            ntop_flow_get_ssl_version            },
   { "getTCPPacketIssues",       ntop_flow_get_tcp_packet_issues      },
@@ -10395,7 +10376,7 @@ static const luaL_Reg ntop_flow_reg[] = {
 #ifdef HAVE_NEDGE
   { "isPassVerdict",            ntop_flow_is_pass_verdict            },
 #endif
-  { "getDurationInformation",   ntop_flow_get_duration_info          },
+  { "getDurationInfo",          ntop_flow_get_duration_info          },
   { "getProtocolBreedInfo",     ntop_flow_get_proto_breed_info       },
   { "retrieveExternalAlertInfo", ntop_flow_retrieve_external_alert_info },
   { "getDeviceProtoAllowedInfo", ntop_flow_get_device_proto_allowed_info},
