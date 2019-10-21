@@ -113,7 +113,7 @@ class Flow : public GenericHashEntry {
 #endif
   char *external_alert;
   u_int8_t external_alert_severity;
-  bool trigger_periodic_update;
+  bool trigger_scheduled_periodic_update, trigger_immediate_periodic_update;
  
   union {
     struct {

@@ -88,7 +88,7 @@ Flow::Flow(NetworkInterface *_iface,
   
   external_alert = NULL;
   external_alert_severity = 255;
-  trigger_periodic_update = false;
+  trigger_scheduled_periodic_update = trigger_immediate_periodic_update = false;
 
   memset(&last_db_dump, 0, sizeof(last_db_dump));
   memset(&protos, 0, sizeof(protos));
@@ -1200,6 +1200,11 @@ void Flow::update_hosts_stats(bool dump_alert, update_stats_user_data_t *update_
     diff_rcvd_bytes = rcvd_bytes - srv2cli_last_bytes, diff_rcvd_goodput_bytes = rcvd_goodput_bytes - srv2cli_last_goodput_bytes;
   prev_srv2cli_last_bytes = srv2cli_last_bytes, prev_srv2cli_last_goodput_bytes = srv2cli_last_goodput_bytes,
     prev_srv2cli_last_packets = srv2cli_last_packets;
+
+  if(diff_sent_packets || diff_rcvd_packets) {
+    /* New packets have been exchanged, the lua update callback needs be called */
+    trigger_scheduled_periodic_update = true;
+  }
 
   cli2srv_last_packets = sent_packets, cli2srv_last_bytes = sent_bytes,
     cli2srv_last_goodput_bytes = sent_goodput_bytes;
@@ -3888,18 +3893,22 @@ bool Flow::isLuaCallPerformed(FlowLuaCall flow_lua_call, const struct timeval *t
   
   switch(flow_lua_call) {
   case flow_lua_call_periodic_update:
-    if(trigger_periodic_update) {
+    if(trigger_immediate_periodic_update) {
       /* periodic update was forced */
       return(false);
     }
 
-    periodic_update_freq = iface->getFlowMaxIdle() * 5; /* 5 times the max flow idleness */
+    if(trigger_scheduled_periodic_update) {
+      /* The update was scheduled as somthing changed in the flow. */
+      periodic_update_freq = 30;
+    } else
+      periodic_update_freq = iface->getFlowMaxIdle() * 5; /* 5 times the max flow idleness */
 
     if(already_called)
       /* Don't re-call it before the maximum flow lifetime */
       return(performed_lua_calls[flow_lua_call] + periodic_update_freq > tv->tv_sec);
     else
-      /* Call the first time only after getFlowMaxIdle() seconds have elapsed */
+      /* Call the first time only after periodic_update_freq seconds have elapsed */
       return(get_duration() < periodic_update_freq);
   default:
     break;
@@ -4390,7 +4399,8 @@ void Flow::performLuaCall(FlowLuaCall flow_lua_call, const struct timeval *tv, A
     lua_call_fn_name = FLOW_LUA_CALL_FLOW_STATUS_CHANGE_FN_NAME;
     break;
   case flow_lua_call_periodic_update:
-    trigger_periodic_update = false;
+    trigger_scheduled_periodic_update = false;
+    trigger_immediate_periodic_update = false;
     lua_call_fn_name = FLOW_LUA_CALL_PERIODIC_UPDATE_FN_NAME;
     break;
   case flow_lua_call_idle:
@@ -4483,7 +4493,7 @@ void Flow::setExternalAlert(json_object *a, u_int8_t severity) {
     external_alert_severity = severity;
 
     /* Manually trigger a periodic update to process the alert */
-    trigger_periodic_update = true;
+    trigger_immediate_periodic_update = true;
   }
 
   json_object_put(a);
