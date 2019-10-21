@@ -26,7 +26,10 @@ function script.hooks.protocolDetected(params)
   local proto_info = flow.getDeviceProtoAllowedInfo()
 
   if((not proto_info["cli.allowed"]) or (not proto_info["srv.allowed"])) then
-    local alert_info = {}
+    local alert_info = {
+      ["cli.devtype"] = proto_info["cli.devtype"],
+      ["srv.devtype"] = proto_info["srv.devtype"],
+    }
 
     if(not proto_info["cli.allowed"]) then
       alert_info["devproto_forbidden_peer"] = "cli"

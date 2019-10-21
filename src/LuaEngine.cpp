@@ -8449,6 +8449,56 @@ static int ntop_flow_get_unicast_info(lua_State* vm) {
 
 /* ****************************************** */
 
+static int ntop_flow_get_key(lua_State* vm) {
+  Flow *f = ntop_flow_get_context_flow(vm);
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  lua_pushinteger(vm, f->key());
+
+  return(CONST_LUA_OK);
+}
+/* ****************************************** */
+
+static int ntop_flow_get_hash_entry_id(lua_State* vm) {
+  Flow *f = ntop_flow_get_context_flow(vm);
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  lua_pushinteger(vm, f->get_hash_entry_id());
+
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+/* Get ICMP information that is specific for the serialization of ICMP data
+ * into the flow status_info */
+static int ntop_flow_get_icmp_status_info(lua_State* vm) {
+  Flow *f = ntop_flow_get_context_flow(vm);
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  if(f->isICMP()) {
+    u_int8_t icmp_type, icmp_code;
+    u_int16_t echo_id;
+
+    f->getICMP(&icmp_type, &icmp_code, &echo_id);
+
+    lua_newtable(vm);
+    lua_push_int32_table_entry(vm, "type", icmp_type);
+    lua_push_int32_table_entry(vm, "code", icmp_code);
+
+    lua_newtable(vm);
+    f->getICMPInfo()->lua(vm, NULL, f->getInterface(), f->get_vlan_id());
+  } else
+    lua_pushnil(vm);
+
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
 static int ntop_flow_is_local(lua_State* vm) {
   Flow *f = ntop_flow_get_context_flow(vm);
   bool is_local = false;
@@ -8562,6 +8612,29 @@ static int ntop_flow_get_tcp_stats(lua_State* vm) {
   if(!f) return(CONST_LUA_ERROR);
 
   f->lua_get_tcp_stats(vm);
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_flow_get_blacklisted_info(lua_State* vm) {
+  Flow *f = ntop_flow_get_context_flow(vm);
+  Host *cli_host, *srv_host;
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  cli_host = f->get_cli_host();
+  srv_host = f->get_srv_host();
+
+  lua_newtable(vm);
+
+  if(cli_host && cli_host->isBlacklisted())
+    lua_push_bool_table_entry(vm, "blacklisted.cli", true);
+  if(srv_host && srv_host->isBlacklisted())
+    lua_push_bool_table_entry(vm, "blacklisted.srv", true);
+  if(f->get_protocol_category() == CUSTOM_CATEGORY_MALWARE)
+    lua_push_bool_table_entry(vm, "blacklisted.cat", true);
+
   return(CONST_LUA_OK);
 }
 
@@ -10359,6 +10432,9 @@ static const luaL_Reg ntop_flow_reg[] = {
   { "triggerAlert",             ntop_flow_trigger_alert              },
   { "getPredominantStatus",     ntop_get_predominant_status          },
   { "setPredominantStatus",     ntop_set_predominant_status          },
+  { "getKey",                   ntop_flow_get_key                    },
+  { "getHashEntryId",           ntop_flow_get_hash_entry_id          },
+  { "getICMPStatusInfo",        ntop_flow_get_icmp_status_info       },
 
   /* TODO document */
   { "isLocal",                  ntop_flow_is_local                   },
@@ -10373,6 +10449,7 @@ static const luaL_Reg ntop_flow_reg[] = {
   { "getSSLVersion",            ntop_flow_get_ssl_version            },
   { "getTCPPacketIssues",       ntop_flow_get_tcp_packet_issues      },
   { "getTCPStats",              ntop_flow_get_tcp_stats              },
+  { "getBlacklistedInfo",       ntop_flow_get_blacklisted_info       },
 #ifdef HAVE_NEDGE
   { "isPassVerdict",            ntop_flow_is_pass_verdict            },
 #endif

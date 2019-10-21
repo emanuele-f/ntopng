@@ -1797,6 +1797,9 @@ void Flow::lua(lua_State* vm, AddressTree * ptree,
       lua_settable(vm, -3);
     }
 
+    lua_push_int32_table_entry(vm, "cli.devtype", cli_host->getMac() ? cli_host->getMac()->getDeviceType() : device_unknown);
+    lua_push_int32_table_entry(vm, "srv.devtype", srv_host->getMac() ? srv_host->getMac()->getDeviceType() : device_unknown);
+
     lua_push_bool_table_entry(vm, "flow_goodput.low", isLowGoodput());
 
 #ifdef HAVE_NEDGE
@@ -4180,6 +4183,9 @@ void Flow::lua_device_protocol_allowed_info(lua_State *vm) {
   srv_ps = srv_host->getDeviceAllowedProtocolStatus(ndpiDetectedProtocol, false);
   cli_allowed = (cli_ps == device_proto_allowed);
   srv_allowed = (srv_ps == device_proto_allowed);
+
+  lua_push_int32_table_entry(vm, "cli.devtype", cli_host->getMac() ? cli_host->getMac()->getDeviceType() : device_unknown);
+  lua_push_int32_table_entry(vm, "srv.devtype", srv_host->getMac() ? srv_host->getMac()->getDeviceType() : device_unknown);
 
   lua_push_bool_table_entry(vm, "cli.allowed", cli_allowed);
   if(!cli_allowed)

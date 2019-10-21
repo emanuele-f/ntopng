@@ -15,6 +15,7 @@ require "alert_utils"
 local user_scripts = require("user_scripts")
 local alert_consts = require("alert_consts")
 local flow_consts = require("flow_consts")
+local json = require("dkjson")
 
 if ntop.isPro() then
   package.path = dirs.installdir .. "/pro/scripts/lua/modules/?.lua;" .. package.path
@@ -106,6 +107,22 @@ end
 
 -- #################################################################
 
+-- @brief Store more information into the flow status. Such information
+-- does not depend the specific flow status being triggered
+-- @param flow_info as returned by flow.getInfo()
+-- @param flow_status the status table to augument
+local function augumentFlowStatusInfo(flow_info, flow_status)
+   flow_status["ntopng.key"] = flow.getKey()
+   flow_status["hash_entry_id"] = flow.getHashEntryId()
+
+   if(flow_info["proto.ndpi"] == "ICMP") then
+      -- NOTE: this information is parsed by getFlowStatusInfo()
+      flow_status["icmp"] = flow.getICMPStatusInfo()
+   end
+end
+
+-- #################################################################
+
 -- Function for the actual module execution. Iterates over available (and enabled)
 -- modules, calling them one after one.
 -- @param l4_proto the L4 protocol of the flow
@@ -185,6 +202,17 @@ local function call_modules(l4_proto, mod_fn)
       if do_trace then
          traceError(TRACE_NORMAL, TRACE_CONSOLE, string.format("flow.triggerAlert(type=%s, severity=%s)",
             alertTypeRaw(alerted_status.alert_type.alert_id), alertSeverityRaw(alerted_status.alert_severity.severity_id)))
+      end
+
+      -- The message can be either a table or a localized string message.
+      -- When using tables the status can possibly be augumented with augumentFlowStatusInfo
+      alerted_status_msg = alerted_status_msg or {}
+
+      if(type(alerted_status_msg) == "table") then
+         augumentFlowStatusInfo(info, alerted_status_msg)
+
+         -- Need to convert to JSON
+         alerted_status_msg = json.encode(alerted_status_msg)
       end
 
       flow.triggerAlert(alerted_status.status_id, alerted_status.alert_type.alert_id,
