@@ -976,7 +976,7 @@ else
 
             if(alert_json ~= nil) and (alert_json["status_info"] ~= nil)then
                alerted_status = tonumber(res[1].flow_status)
-               message = flow_consts.getStatusDescription(alerted_status, alert_json["status_info"])
+               message = flow_consts.getStatusDescription(alerted_status, flow2statusinfo(flow))
             end
          end
       end

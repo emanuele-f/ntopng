@@ -8542,6 +8542,29 @@ static int ntop_flow_get_score(lua_State* vm) {
 
 /* ****************************************** */
 
+static int ntop_flow_get_score_info(lua_State* vm) {
+  Flow *f = ntop_flow_get_context_flow(vm);
+  Host *cli_host, *srv_host;
+  const char *status_info;
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  cli_host = f->get_cli_host();
+  srv_host = f->get_srv_host();
+  status_info = f->getStatusInfo();
+
+  lua_newtable(vm);
+  lua_push_uint64_table_entry(vm, "status_map", f->getStatusBitmap().get());
+  lua_push_int32_table_entry(vm, "score", f->getScore());
+  lua_push_int32_table_entry(vm, "cli.score", ((cli_host && cli_host->getScore() != CONST_NO_SCORE_SET) ? cli_host->getScore() : 0));
+  lua_push_int32_table_entry(vm, "srv.score", ((srv_host && srv_host->getScore() != CONST_NO_SCORE_SET) ? srv_host->getScore() : 0));
+  if(status_info) lua_push_str_table_entry(vm, "status_info", status_info);
+
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
 static int ntop_flow_set_peer_score(lua_State* vm, bool client) {
   Flow *f = ntop_flow_get_context_flow(vm);
   int score;
@@ -8699,32 +8722,6 @@ static int ntop_flow_get_device_proto_allowed_info(lua_State* vm) {
   f->lua_device_protocol_allowed_info(vm);
 
   return(CONST_LUA_OK);
-}
-
-/* ****************************************** */
-
-static int ntop_flow_get_peer_score(lua_State* vm, bool client) {
-  Flow *f = ntop_flow_get_context_flow(vm);
-  Host *host;
-
-  if(!f) return(CONST_LUA_ERROR);
-
-  host = client ? f->get_cli_host() : f->get_srv_host();
-
-  if(!host)
-    return(CONST_LUA_ERROR);
-
-  lua_pushinteger(vm, (host->getScore() != CONST_NO_SCORE_SET) ? host->getScore() : 0);
-
-  return(CONST_LUA_OK);
-}
-
-static int ntop_flow_get_client_score(lua_State* vm) {
-  return(ntop_flow_get_peer_score(vm, true /* client */));
-}
-
-static int ntop_flow_get_server_score(lua_State* vm) {
-  return(ntop_flow_get_peer_score(vm, false /* server */));
 }
 
 /* ****************************************** */
@@ -10440,8 +10437,7 @@ static const luaL_Reg ntop_flow_reg[] = {
   { "isLocal",                  ntop_flow_is_local                   },
   { "setScore",                 ntop_flow_set_score                  },
   { "getScore",                 ntop_flow_get_score                  },
-  { "getClientScore",           ntop_flow_get_client_score           },
-  { "getServerScore",           ntop_flow_get_server_score           },
+  { "getScoreInfo",             ntop_flow_get_score_info             },
   { "setClientScore",           ntop_flow_set_client_score           },
   { "setServerScore",           ntop_flow_set_server_score           },
   { "getMUDInfo",               ntop_flow_get_mud_info               },

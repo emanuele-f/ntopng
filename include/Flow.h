@@ -273,6 +273,7 @@ class Flow : public GenericHashEntry {
   void triggerAlert(FlowStatus status, AlertType atype, AlertLevel severity, const char*alert_json);
   inline void setPredominantStatus(FlowStatus status) { predominant_status = status; }
   inline FlowStatus getPredominantStatus() const      { return(predominant_status); }
+  inline const char* getStatusInfo() const      { return(alert_status_info);    }
 
   bool isBlacklistedFlow() const;
   struct site_categories* getFlowCategory(bool force_categorization);
