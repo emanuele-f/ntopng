@@ -73,6 +73,7 @@ class Ntop {
   cpu_load_stats cpu_stats;
   float cpu_load;
   bool is_started;
+  bool is_systemd_service;
   std::set<std::string> *new_malicious_ja3, *malicious_ja3, *malicious_ja3_shadow;
   
 #ifdef NTOPNG_PRO
@@ -408,6 +409,7 @@ class Ntop {
 
   inline u_int getNumCPUs()             { return(num_cpus); }
   inline void setNumCPUs(u_int num)     { num_cpus = num; }
+  inline bool isSystemdService()        { return(is_systemd_service); }
 
   inline NtopPro* getPro()              { return((NtopPro*)pro); };
 

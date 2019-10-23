@@ -1472,7 +1472,6 @@ static int ntop_set_https_bind_addr(lua_State* vm) {
 
 /* ****************************************** */
 
-#ifdef HAVE_NEDGE
 static int ntop_shutdown(lua_State* vm) {
   char *action;
   extern AfterShutdownAction afterShutdownAction;
@@ -1498,7 +1497,6 @@ static int ntop_shutdown(lua_State* vm) {
 
   return(CONST_LUA_OK);
 }
-#endif
 
 /* ****************************************** */
 
@@ -1532,6 +1530,15 @@ static int ntop_ip_cmp(lua_State* vm) {
   b.set((char*)lua_tostring(vm, 2));
 
   lua_pushinteger(vm, a.compare(&b));
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_is_systemd_service(lua_State* vm) {
+  ntop->getTrace()->traceEvent(TRACE_DEBUG, "%s() called", __FUNCTION__);
+
+  lua_pushboolean(vm, ntop->isSystemdService());
   return(CONST_LUA_OK);
 }
 
@@ -10774,6 +10781,7 @@ static const luaL_Reg ntop_reg[] = {
   { "getNetworkNameById",   ntop_network_name_by_id },
   { "getNetworkIdByName",   ntop_network_id_by_name },
   { "isGuiAccessRestricted", ntop_is_gui_access_restricted },
+  { "shutdown",             ntop_shutdown                  },
 
   /* Security */
   { "getRandomCSRFValue",   ntop_generate_csrf_value },
@@ -10834,6 +10842,7 @@ static const luaL_Reg ntop_reg[] = {
   { "isShutdown",           ntop_is_shutdown          },
   { "listInterfaces",       ntop_list_interfaces      },
   { "ipCmp",                ntop_ip_cmp               },
+  { "isSystemdService",     ntop_is_systemd_service   },
 
   /* JA3 */
   { "loadMaliciousJA3Hash", ntop_load_malicious_ja3_hash },
@@ -10858,7 +10867,6 @@ static const luaL_Reg ntop_reg[] = {
 #ifdef HAVE_NEDGE
   { "setHTTPBindAddr",       ntop_set_http_bind_addr       },
   { "setHTTPSBindAddr",      ntop_set_https_bind_addr      },
-  { "shutdown",              ntop_shutdown                 },
   { "setRoutingMode",        ntop_set_routing_mode         },
   { "isRoutingMode",         ntop_is_routing_mode          },
   { "setLanInterface",       ntop_set_lan_interface        },

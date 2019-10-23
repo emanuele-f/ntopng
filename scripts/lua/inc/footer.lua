@@ -72,6 +72,40 @@ if have_nedge then
       }
     })
   )
+else -- ntopng
+  print[[<form id="restartSelfForm" method="post">
+    <input name="csrf" value="]] print(ntop.getRandomCSRFValue()) print[[" type="hidden" />
+    <input name="restart_self" value="" type="hidden" />
+  </form>]]
+
+  print(
+    template.gen("modal_confirm_dialog.html", {
+      dialog={
+        id      = "restart_self_dialog",
+        action  = "$('#restartSelfForm').submit()",
+        title   = i18n("restart_ntopng"),
+        message = i18n("restart_ntopng_confirm"),
+        confirm = i18n("traffic_recording.restart"),
+      }
+    })
+  )
+
+  print[[<form id="shutdownSelfForm" method="post">
+    <input name="csrf" value="]] print(ntop.getRandomCSRFValue()) print[[" type="hidden" />
+    <input name="shutdown_self" value="" type="hidden" />
+  </form>]]
+
+  print(
+    template.gen("modal_confirm_dialog.html", {
+      dialog={
+        id      = "shutdown_self_dialog",
+        action  = "$('#shutdownSelfForm').submit()",
+        title   = i18n("shutdown_ntopng"),
+        message = i18n("shutdown_ntopng_confirm"),
+        confirm = i18n("shutdown"),
+      }
+    })
+  )
 end
 
 if(info["pro.systemid"] and (info["pro.systemid"] ~= "")) then

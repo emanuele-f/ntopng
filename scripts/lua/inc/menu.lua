@@ -541,6 +541,15 @@ print[[<li><a href="]]
 print(ntop.getHttpPrefix())
 print [[/lua/logout.lua"><i class="fa fa-sign-out"></i> ]] print(i18n("login.logout_user_x", {user=_SESSION["user"]})) print [[</a></li>]]
 
+-- TODO add check is managed by systemd
+if(is_admin) then
+   print[[<li><a href="javascript:void(0);" onclick="$('#shutdown_self_dialog').modal('show');"><i class="fa fa-power-off"></i> ]] print(i18n("shutdown_ntopng")) print [[</a></li>]]
+
+   if ntop.isSystemdService() then
+      print[[<li><a href="javascript:void(0);" onclick="$('#restart_self_dialog').modal('show');"><i class="fa fa-undo"></i> ]] print(i18n("restart_ntopng")) print [[</a></li>]]
+   end
+end
+
    print[[
     </ul>
     </li>
@@ -634,3 +643,11 @@ if(_SESSION["INVALID_CSRF"]) then
 end
 
 telemetry_utils.show_notice()
+
+if(is_admin) then
+   if(_POST["restart_self"] ~= nil) then
+      ntop.shutdown("restart_self")
+   elseif(_POST["shutdown_self"] ~= nil) then
+      ntop.shutdown()
+   end
+end

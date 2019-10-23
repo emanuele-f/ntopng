@@ -69,6 +69,7 @@ Ntop::Ntop(char *appName) {
   cpu_load = 0;
   malicious_ja3 = malicious_ja3_shadow = NULL;
   new_malicious_ja3 = new std::set<std::string>();
+  is_systemd_service = false;
 
 #ifdef WIN32
   if(SHGetFolderPath(NULL, CSIDL_PERSONAL, NULL, SHGFP_TYPE_CURRENT, working_dir) != S_OK) {
@@ -125,6 +126,10 @@ Ntop::Ntop(char *appName) {
       break;
     }
   }
+#endif
+
+#ifdef __linux__
+  is_systemd_service = (getenv("NTOPNG_LAUNCHED_BY_SYSTEMD") != NULL);
 #endif
 
 #ifdef NTOPNG_PRO

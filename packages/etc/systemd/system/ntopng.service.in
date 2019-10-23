@@ -8,6 +8,7 @@ PartOf=@SERVICE_WANTS@
 [Service]
 Type=simple
 
+Environment=NTOPNG_LAUNCHED_BY_SYSTEMD=1
 ExecStartPre=/bin/sh -c '/bin/echo "$(/bin/date) @APP@ StartPre" >> /var/log/ntop-systemd.log'
 ExecStartPre=/bin/sh -c '/usr/bin/ntopng-utils-manage-config -a check-restore  && /usr/bin/ntopng-utils-manage-config -a restore || true'
 ExecStartPre=/bin/sh -c '/bin/sed "/^[ ]*-e.*$\\|^[ ]*-G.*\\|^[ ]*--daemon.*\\|^[ ]*--pid.*/s/^/#/" /etc/ntopng/ntopng.conf > /run/ntopng.conf'
