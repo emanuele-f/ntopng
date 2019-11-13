@@ -76,6 +76,9 @@ Ntop::Ntop(char *appName) {
   ndpi_struct = initnDPIStruct();
   ndpi_finalize_initalization(ndpi_struct);
 
+  sqlite_alerts_queue = new FifoStringsQueue(SQLITE_ALERTS_QUEUE_SIZE);
+  alerts_notifications_queue = new FifoStringsQueue(ALERTS_NOTIFICATIONS_QUEUE_SIZE);
+
   resolvedHostsBloom = new Bloom(NUM_HOSTS_RESOLVED_BITS);
   
 #ifdef WIN32
@@ -213,7 +216,9 @@ Ntop::~Ntop() {
 #endif
 
   if(resolvedHostsBloom) delete resolvedHostsBloom;
-  
+  delete sqlite_alerts_queue;
+  delete alerts_notifications_queue;
+
   if(ndpi_struct) {
     ndpi_exit_detection_module(ndpi_struct);
     ndpi_struct = NULL;

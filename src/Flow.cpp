@@ -2078,6 +2078,67 @@ json_object* Flow::flow2json() {
 
 /* *************************************** */
 
+/* Create a JSON in the alerts format */
+json_object* Flow::flow2alertJson() {
+  json_object *obj = json_object_new_object();
+  json_object *status_obj = json_object_new_object();
+  const char *info;
+  char buf[64];
+
+  if(!obj || !status_obj) {
+    if(obj) json_object_put(obj);
+    if(status_obj) json_object_put(status_obj);
+
+    return(NULL);
+  }
+
+  info = getFlowInfo();
+  json_object_object_add(status_obj, "info", json_object_new_string(info ? info : ""));
+  json_object_object_add(status_obj, "status_info", json_object_new_string(alert_status_info ? alert_status_info : ""));
+  json_object_object_add(obj, "alert_json", status_obj);
+
+  json_object_object_add(obj, "ifid", json_object_new_int(iface->get_id()));
+  json_object_object_add(obj, "action", json_object_new_string("store"));
+
+  json_object_object_add(obj, "is_flow_alert", json_object_new_boolean(true));
+  json_object_object_add(obj, "alert_tstamp", json_object_new_int64(time(NULL)));
+  json_object_object_add(obj, "flow_status", json_object_new_int64(alerted_status));
+  json_object_object_add(obj, "alert_type", json_object_new_int64(alert_type));
+  json_object_object_add(obj, "alert_level", json_object_new_int64(alert_level));
+
+  json_object_object_add(obj, "vlan_id", json_object_new_int(get_vlan_id()));
+  json_object_object_add(obj, "proto", json_object_new_int(protocol));
+  json_object_object_add(obj, "l7_master_proto", json_object_new_int(ndpiDetectedProtocol.master_protocol));
+  json_object_object_add(obj, "l7_master_proto", json_object_new_int(ndpiDetectedProtocol.master_protocol));
+  json_object_object_add(obj, "l7_proto", json_object_new_int(ndpiDetectedProtocol.app_protocol));
+
+  json_object_object_add(obj, "cli2srv.bytes", json_object_new_int64(get_bytes_cli2srv()));
+  json_object_object_add(obj, "cli2srv.packets", json_object_new_int64(get_packets_cli2srv()));
+  json_object_object_add(obj, "srv2cli.bytes", json_object_new_int64(get_bytes_srv2cli()));
+  json_object_object_add(obj, "srv2cli.packets", json_object_new_int64(get_packets_srv2cli()));
+
+  if(cli_host) {
+    json_object_object_add(obj, "cli.ip", json_object_new_string(cli_host->get_ip()->print(buf, sizeof(buf))));
+    json_object_object_add(obj, "cli.country", json_object_new_string(cli_host->get_country(buf, sizeof(buf))));
+    json_object_object_add(obj, "cli.os", json_object_new_string(cli_host->getOSDetail(buf, sizeof(buf))));
+    json_object_object_add(obj, "cli.asn", json_object_new_int64(cli_host->get_asn()));
+    json_object_object_add(obj, "cli.localhost", json_object_new_boolean(cli_host->isLocalHost()));
+    json_object_object_add(obj, "cli.blacklisted", json_object_new_boolean(cli_host->isBlacklisted()));
+  }
+  if(srv_host) {
+    json_object_object_add(obj, "srv.ip", json_object_new_string(srv_host->get_ip()->print(buf, sizeof(buf))));
+    json_object_object_add(obj, "srv.country", json_object_new_string(srv_host->get_country(buf, sizeof(buf))));
+    json_object_object_add(obj, "srv.os", json_object_new_string(srv_host->getOSDetail(buf, sizeof(buf))));
+    json_object_object_add(obj, "srv.asn", json_object_new_int64(srv_host->get_asn()));
+    json_object_object_add(obj, "srv.localhost", json_object_new_boolean(srv_host->isLocalHost()));
+    json_object_object_add(obj, "srv.blacklisted", json_object_new_boolean(srv_host->isBlacklisted()));
+  }
+
+  return(obj);
+}
+
+/* *************************************** */
+
 #ifdef HAVE_NEDGE
 
 bool Flow::isNetfilterIdleFlow() const {

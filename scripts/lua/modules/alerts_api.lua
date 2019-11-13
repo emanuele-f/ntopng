@@ -197,10 +197,11 @@ function alerts_api.checkPendingStoreAlerts(deadline)
   local ifnames = interface.getIfNames()
   ifnames[getSystemInterfaceId()] = getSystemInterfaceName()
 
+  -- TODO use single queue
   for ifid, _ in pairs(ifnames) do
     interface.select(ifid)
 
-    -- Dequeue Alerts
+    -- Dequeue non-flow Alerts
 
     local queue = getAlertEventQueue(ifid)
 
@@ -225,47 +226,29 @@ function alerts_api.checkPendingStoreAlerts(deadline)
         return(false)
       end
     end
+  end
 
-    -- Dequeue Flow Alerts
+  -- Flow Alerts
+  while(true) do
+    local alert_json = ntop.dequeueSqliteAlert()
 
-    queue = getFlowAlertEventQueue(ifid)
-
-    while(true) do
-      local alert_json = ntop.lpopCache(queue)
-
-      if(not alert_json) then
-        break
-      end
-
-      local alert = json.decode(alert_json)
-
-      if(alert) then
-        interface.storeFlowAlert(alert)
-      end
-
-      if(os.time() > deadline) then
-        return(false)
-      end
+    if(not alert_json) then
+      break
     end
 
+    local alert = json.decode(alert_json)
+
+    if(alert) then
+      interface.select(string.format("%d", alert.ifid))
+      interface.storeFlowAlert(alert)
+    end
+
+    if(os.time() > deadline) then
+      return(false)
+    end
   end
 
   return(true)
-end
-
--- ##############################################
-
---! @brief Stores a flow alert into the alerts database
-function alerts_api.storeFlow(alert)
-  local ifid = interface.getId()
-
-  alert.ifid = ifid
-  alert.action = "store"
-
-  local alert_json = json.encode(alert)
-
-  enqueueStoreFlowAlert(ifid, alert_json)
-  pushAlertJSONNotification(alert_json)
 end
 
 -- ##############################################

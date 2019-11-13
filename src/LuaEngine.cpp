@@ -9308,12 +9308,21 @@ static int ntop_set_predominant_status(lua_State* vm) {
 
 /* ****************************************** */
 
+json_object *flowStatus2Json(lua_State* vm, int arg_idx, Flow *f) {
+  /* TODO */
+  return(NULL);
+}
+
+/* ****************************************** */
+
 static int ntop_flow_trigger_alert(lua_State* vm) {
   Flow *f = ntop_flow_get_context_flow(vm);
   FlowStatus status;
   AlertType atype;
   AlertLevel severity;
   const char *status_info = NULL;
+  bool triggered = false;
+  json_object *json_obj = NULL, *flow_json = NULL;
 
   if(!f) return(CONST_LUA_ERROR);
 
@@ -9326,10 +9335,75 @@ static int ntop_flow_trigger_alert(lua_State* vm) {
   if(ntop_lua_check(vm, __FUNCTION__, 3, LUA_TNUMBER) != CONST_LUA_OK) return(CONST_LUA_ERROR);
   severity = (AlertLevel)lua_tonumber(vm, 3);
 
-  if(lua_type(vm, 4) == LUA_TSTRING)
-    status_info = lua_tostring(vm, 4);
+  if(!f->isFlowAlerted()) {
+    /* NOTE: the 4th param can be either a string, a table, or NULL */
+    if(lua_type(vm, 4) == LUA_TSTRING)
+      status_info = lua_tostring(vm, 4);
+    else if(lua_type(vm, 4) == LUA_TTABLE) {
+      json_obj = flowStatus2Json(vm, 4, f);
 
-  lua_pushboolean(vm, f->triggerAlert(status, atype, severity, status_info));
+      if(json_obj)
+        status_info = json_object_get_string(json_obj);
+    }
+
+    if(f->triggerAlert(status, atype, severity, status_info)) {
+      /* The alert was successfully triggered */
+      FifoStringsQueue *sqlite_queue = ntop->getSqliteAlertsQueue();
+      FifoStringsQueue *notif_queue = ntop->getAlertsNotificationsQueue();
+
+      triggered = true;
+
+      if(sqlite_queue->canEnqueue() || notif_queue->canEnqueue()) {
+        /* Only proceed if there is some space in the queues */
+        flow_json = f->flow2alertJson();
+
+        if(flow_json) {
+          const char *flow_str = json_object_get_string(flow_json);
+
+          if(!sqlite_queue->enqueue(flow_str))
+            f->getInterface()->incNumDroppedAlerts(1);
+
+          notif_queue->enqueue(flow_str);
+        }
+      } else
+        f->getInterface()->incNumDroppedAlerts(1);
+    }
+  }
+
+  if(json_obj)
+    json_object_put(json_obj);
+
+  if(flow_json)
+    json_object_put(flow_json);
+
+  lua_pushboolean(vm, triggered);
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_dequeue_sqlite_alert(lua_State* vm) {
+  char *alert = ntop->getSqliteAlertsQueue()->dequeue();
+
+  if(alert) {
+    lua_pushstring(vm, alert);
+    free(alert);
+  } else
+    lua_pushnil(vm);
+
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_dequeue_alert_notification(lua_State* vm) {
+  char *notification = ntop->getAlertsNotificationsQueue()->dequeue();
+
+  if(notification) {
+    lua_pushstring(vm, notification);
+    free(notification);
+  } else
+    lua_pushnil(vm);
 
   return(CONST_LUA_OK);
 }
@@ -11160,6 +11234,10 @@ static const luaL_Reg ntop_reg[] = {
   { "bitmapIsSet",           ntop_bitmap_is_set         },
   { "bitmapSet",             ntop_bitmap_set            },
   { "bitmapClear",           ntop_bitmap_clear          },
+
+  /* Alerts queues */
+  { "dequeueSqliteAlert",       ntop_dequeue_sqlite_alert            },
+  { "dequeueAlertNotification", ntop_dequeue_alert_notification      },
 
   /* nEdge */
 #ifdef HAVE_NEDGE
