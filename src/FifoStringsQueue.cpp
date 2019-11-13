@@ -21,7 +21,7 @@
 
 #include "ntop_includes.h"
 
-#define DEBUG_FIFO_QUEUE
+//~ #define DEBUG_FIFO_QUEUE
 
 FifoStringsQueue::FifoStringsQueue(u_int32_t queue_size) {
   m = new Mutex();

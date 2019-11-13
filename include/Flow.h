@@ -274,7 +274,7 @@ class Flow : public GenericHashEntry {
 	   || !get_srv_host() || Utils::maskHost(get_srv_host()->isLocalHost()));
   };
   char* serialize(bool es_json = false);
-  json_object* flow2alertJson();
+  void flow2alertJson(ndpi_serializer *serializer);
   json_object* flow2json();
   json_object* flow2es(json_object *flow_object);
   inline u_int8_t getTcpFlags()        const { return(src2dst_tcp_flags | dst2src_tcp_flags);  };

@@ -2079,62 +2079,52 @@ json_object* Flow::flow2json() {
 /* *************************************** */
 
 /* Create a JSON in the alerts format */
-json_object* Flow::flow2alertJson() {
-  json_object *obj = json_object_new_object();
-  json_object *status_obj = json_object_new_object();
+void Flow::flow2alertJson(ndpi_serializer *s) {
   const char *info;
   char buf[64];
 
-  if(!obj || !status_obj) {
-    if(obj) json_object_put(obj);
-    if(status_obj) json_object_put(status_obj);
-
-    return(NULL);
-  }
-
+  /* Using the nDPI json serializer instead of jsonc for faster speed (~2.5x) */
   info = getFlowInfo();
-  json_object_object_add(status_obj, "info", json_object_new_string(info ? info : ""));
-  json_object_object_add(status_obj, "status_info", json_object_new_string(alert_status_info ? alert_status_info : ""));
-  json_object_object_add(obj, "alert_json", status_obj);
+  ndpi_serialize_start_of_block(s, "alert_json");
+  ndpi_serialize_string_string(s, "info", info ? info : "");
+  ndpi_serialize_string_string(s, "status_info", alert_status_info ? alert_status_info : "");
+  ndpi_serialize_end_of_block(s);
 
-  json_object_object_add(obj, "ifid", json_object_new_int(iface->get_id()));
-  json_object_object_add(obj, "action", json_object_new_string("store"));
+  ndpi_serialize_string_int32(s, "ifid", iface->get_id());
+  ndpi_serialize_string_string(s, "action", "store");
 
-  json_object_object_add(obj, "is_flow_alert", json_object_new_boolean(true));
-  json_object_object_add(obj, "alert_tstamp", json_object_new_int64(time(NULL)));
-  json_object_object_add(obj, "flow_status", json_object_new_int64(alerted_status));
-  json_object_object_add(obj, "alert_type", json_object_new_int64(alert_type));
-  json_object_object_add(obj, "alert_level", json_object_new_int64(alert_level));
+  ndpi_serialize_string_boolean(s, "is_flow_alert", true);
+  ndpi_serialize_string_int64(s, "alert_tstamp", time(NULL));
+  ndpi_serialize_string_int64(s, "flow_status", alerted_status);
+  ndpi_serialize_string_int32(s, "alert_type", alert_type);
+  ndpi_serialize_string_int32(s, "alert_level", alert_level);
 
-  json_object_object_add(obj, "vlan_id", json_object_new_int(get_vlan_id()));
-  json_object_object_add(obj, "proto", json_object_new_int(protocol));
-  json_object_object_add(obj, "l7_master_proto", json_object_new_int(ndpiDetectedProtocol.master_protocol));
-  json_object_object_add(obj, "l7_master_proto", json_object_new_int(ndpiDetectedProtocol.master_protocol));
-  json_object_object_add(obj, "l7_proto", json_object_new_int(ndpiDetectedProtocol.app_protocol));
+  ndpi_serialize_string_int32(s, "vlan_id", get_vlan_id());
+  ndpi_serialize_string_int32(s, "proto", protocol);
+  ndpi_serialize_string_int32(s, "l7_master_proto", ndpiDetectedProtocol.master_protocol);
+  ndpi_serialize_string_int32(s, "l7_proto", ndpiDetectedProtocol.app_protocol);
 
-  json_object_object_add(obj, "cli2srv.bytes", json_object_new_int64(get_bytes_cli2srv()));
-  json_object_object_add(obj, "cli2srv.packets", json_object_new_int64(get_packets_cli2srv()));
-  json_object_object_add(obj, "srv2cli.bytes", json_object_new_int64(get_bytes_srv2cli()));
-  json_object_object_add(obj, "srv2cli.packets", json_object_new_int64(get_packets_srv2cli()));
+  ndpi_serialize_string_int64(s, "cli2srv.bytes", get_bytes_cli2srv());
+  ndpi_serialize_string_int64(s, "cli2srv.packets", get_packets_cli2srv());
+  ndpi_serialize_string_int64(s, "srv2cli.bytes", get_bytes_srv2cli());
+  ndpi_serialize_string_int64(s, "srv2cli.packets", get_packets_srv2cli());
 
   if(cli_host) {
-    json_object_object_add(obj, "cli.ip", json_object_new_string(cli_host->get_ip()->print(buf, sizeof(buf))));
-    json_object_object_add(obj, "cli.country", json_object_new_string(cli_host->get_country(buf, sizeof(buf))));
-    json_object_object_add(obj, "cli.os", json_object_new_string(cli_host->getOSDetail(buf, sizeof(buf))));
-    json_object_object_add(obj, "cli.asn", json_object_new_int64(cli_host->get_asn()));
-    json_object_object_add(obj, "cli.localhost", json_object_new_boolean(cli_host->isLocalHost()));
-    json_object_object_add(obj, "cli.blacklisted", json_object_new_boolean(cli_host->isBlacklisted()));
+    ndpi_serialize_string_string(s, "cli.ip", cli_host->get_ip()->print(buf, sizeof(buf)));
+    ndpi_serialize_string_string(s, "cli.country", cli_host->get_country(buf, sizeof(buf)));
+    ndpi_serialize_string_string(s, "cli.os", cli_host->getOSDetail(buf, sizeof(buf)));
+    ndpi_serialize_string_int32(s, "cli.asn", cli_host->get_asn());
+    ndpi_serialize_string_boolean(s, "cli.localhost", cli_host->isLocalHost());
+    ndpi_serialize_string_boolean(s, "cli.blacklisted", cli_host->isBlacklisted());
   }
   if(srv_host) {
-    json_object_object_add(obj, "srv.ip", json_object_new_string(srv_host->get_ip()->print(buf, sizeof(buf))));
-    json_object_object_add(obj, "srv.country", json_object_new_string(srv_host->get_country(buf, sizeof(buf))));
-    json_object_object_add(obj, "srv.os", json_object_new_string(srv_host->getOSDetail(buf, sizeof(buf))));
-    json_object_object_add(obj, "srv.asn", json_object_new_int64(srv_host->get_asn()));
-    json_object_object_add(obj, "srv.localhost", json_object_new_boolean(srv_host->isLocalHost()));
-    json_object_object_add(obj, "srv.blacklisted", json_object_new_boolean(srv_host->isBlacklisted()));
+    ndpi_serialize_string_string(s, "srv.ip", srv_host->get_ip()->print(buf, sizeof(buf)));
+    ndpi_serialize_string_string(s, "srv.country", srv_host->get_country(buf, sizeof(buf)));
+    ndpi_serialize_string_string(s, "srv.os", srv_host->getOSDetail(buf, sizeof(buf)));
+    ndpi_serialize_string_int32(s, "srv.asn", srv_host->get_asn());
+    ndpi_serialize_string_boolean(s, "srv.localhost", srv_host->isLocalHost());
+    ndpi_serialize_string_boolean(s, "srv.blacklisted", srv_host->isBlacklisted());
   }
-
-  return(obj);
 }
 
 /* *************************************** */

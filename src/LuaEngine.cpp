@@ -8998,6 +8998,48 @@ static int ntop_flow_get_bytes_rcvd(lua_State* vm) {
 
 /* ****************************************** */
 
+static int ntop_flow_get_client_key(lua_State* vm) {
+  Flow *f = ntop_flow_get_context_flow(vm);
+  Host *h;
+  char buf[64];
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  h = f->get_cli_host();
+  lua_pushstring(vm, h ? h->get_hostkey(buf, sizeof(buf), true /* force VLAN, required by flow.lua */) : "");
+
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_flow_get_server_key(lua_State* vm) {
+  Flow *f = ntop_flow_get_context_flow(vm);
+  Host *h;
+  char buf[64];
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  h = f->get_srv_host();
+  lua_pushstring(vm, h ? h->get_hostkey(buf, sizeof(buf), true /* force VLAN, required by flow.lua */) : "");
+
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_flow_can_trigger_alert(lua_State* vm) {
+  Flow *f = ntop_flow_get_context_flow(vm);
+
+  if(!f) return(CONST_LUA_ERROR);
+
+  lua_pushboolean(vm, !f->isFlowAlerted());
+
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
 static int ntop_flow_is_client_unicast(lua_State* vm) {
   Flow *f = ntop_flow_get_context_flow(vm);
 
@@ -9308,23 +9350,22 @@ static int ntop_set_predominant_status(lua_State* vm) {
 
 /* ****************************************** */
 
-json_object *flowStatus2Json(lua_State* vm, int arg_idx, Flow *f) {
-  /* TODO */
-  return(NULL);
-}
-
-/* ****************************************** */
-
 static int ntop_flow_trigger_alert(lua_State* vm) {
   Flow *f = ntop_flow_get_context_flow(vm);
   FlowStatus status;
   AlertType atype;
   AlertLevel severity;
-  const char *status_info = NULL;
   bool triggered = false;
-  json_object *json_obj = NULL, *flow_json = NULL;
+  const char *status_info = NULL;
+  u_int32_t buflen;
 
   if(!f) return(CONST_LUA_ERROR);
+
+  if(f->isFlowAlerted()) {
+    /* Already alerted */
+    lua_pushboolean(vm, false);
+    return(CONST_LUA_OK);
+  }
 
   if(ntop_lua_check(vm, __FUNCTION__, 1, LUA_TNUMBER) != CONST_LUA_OK) return(CONST_LUA_ERROR);
   status = (FlowStatus)lua_tonumber(vm, 1);
@@ -9335,46 +9376,37 @@ static int ntop_flow_trigger_alert(lua_State* vm) {
   if(ntop_lua_check(vm, __FUNCTION__, 3, LUA_TNUMBER) != CONST_LUA_OK) return(CONST_LUA_ERROR);
   severity = (AlertLevel)lua_tonumber(vm, 3);
 
-  if(!f->isFlowAlerted()) {
-    /* NOTE: the 4th param can be either a string, a table, or NULL */
-    if(lua_type(vm, 4) == LUA_TSTRING)
-      status_info = lua_tostring(vm, 4);
-    else if(lua_type(vm, 4) == LUA_TTABLE) {
-      json_obj = flowStatus2Json(vm, 4, f);
+  if(lua_type(vm, 4) == LUA_TSTRING)
+    status_info = lua_tostring(vm, 4);
 
-      if(json_obj)
-        status_info = json_object_get_string(json_obj);
-    }
+  if(f->triggerAlert(status, atype, severity, status_info)) {
+    /* The alert was successfully triggered */
+    FifoStringsQueue *sqlite_queue = ntop->getSqliteAlertsQueue();
+    FifoStringsQueue *notif_queue = ntop->getAlertsNotificationsQueue();
 
-    if(f->triggerAlert(status, atype, severity, status_info)) {
-      /* The alert was successfully triggered */
-      FifoStringsQueue *sqlite_queue = ntop->getSqliteAlertsQueue();
-      FifoStringsQueue *notif_queue = ntop->getAlertsNotificationsQueue();
+    triggered = true;
 
-      triggered = true;
+    if(sqlite_queue->canEnqueue() || notif_queue->canEnqueue()) {
+      ndpi_serializer flow_json;
+      const char *flow_str;
 
-      if(sqlite_queue->canEnqueue() || notif_queue->canEnqueue()) {
-        /* Only proceed if there is some space in the queues */
-        flow_json = f->flow2alertJson();
+      ndpi_init_serializer(&flow_json, ndpi_serialization_format_json);
 
-        if(flow_json) {
-          const char *flow_str = json_object_get_string(flow_json);
+      /* Only proceed if there is some space in the queues */
+      f->flow2alertJson(&flow_json);
+      flow_str = ndpi_serializer_get_buffer(&flow_json, &buflen);
 
-          if(!sqlite_queue->enqueue(flow_str))
-            f->getInterface()->incNumDroppedAlerts(1);
+      if(flow_str) {
+        if(!sqlite_queue->enqueue(flow_str))
+          f->getInterface()->incNumDroppedAlerts(1);
 
-          notif_queue->enqueue(flow_str);
-        }
-      } else
-        f->getInterface()->incNumDroppedAlerts(1);
-    }
+        notif_queue->enqueue(flow_str);
+      }
+
+      ndpi_term_serializer(&flow_json);
+    } else
+      f->getInterface()->incNumDroppedAlerts(1);
   }
-
-  if(json_obj)
-    json_object_put(json_obj);
-
-  if(flow_json)
-    json_object_put(flow_json);
 
   lua_pushboolean(vm, triggered);
   return(CONST_LUA_OK);
@@ -10943,6 +10975,8 @@ static const luaL_Reg ntop_flow_reg[] = {
   { "getPacketsRcvd",           ntop_flow_get_packets_rcvd           },
   { "getBytesSent",             ntop_flow_get_bytes_sent             },
   { "getBytesRcvd",             ntop_flow_get_bytes_rcvd             },
+  { "getClientKey",             ntop_flow_get_client_key             },
+  { "getServerKey",             ntop_flow_get_server_key             },
   { "isClientUnicast",          ntop_flow_is_client_unicast          },
   { "isServerUnicast",          ntop_flow_is_server_unicast          },
   { "isUnicast",                ntop_flow_is_unicast                 },
@@ -10953,6 +10987,7 @@ static const luaL_Reg ntop_flow_reg[] = {
   { "matchesL7",                ntop_flow_matches_l7                 },
   { "getClientTCPIssues",       ntop_flow_get_cli_tcp_issues         },
   { "getServerTCPIssues",       ntop_flow_get_srv_tcp_issues         },
+  { "canTriggerAlert",          ntop_flow_can_trigger_alert          },
 
   /* TODO document */
   { "isLocal",                  ntop_flow_is_local                   },

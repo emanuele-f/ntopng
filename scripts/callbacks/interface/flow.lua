@@ -116,13 +116,13 @@ end
 
 -- @brief Store more information into the flow status. Such information
 -- does not depend the specific flow status being triggered
--- @param flow_info as returned by flow.getInfo()
+-- @param l4_proto the flow L4 protocol ID
 -- @param flow_status the status table to augument
-local function augumentFlowStatusInfo(flow_info, flow_status)
+local function augumentFlowStatusInfo(l4_proto, flow_status)
    flow_status["ntopng.key"] = flow.getKey()
    flow_status["hash_entry_id"] = flow.getHashEntryId()
 
-   if(flow_info["proto.ndpi"] == "ICMP") then
+   if(l4_proto == 1 --[[ ICMP ]]) then
       -- NOTE: this information is parsed by getFlowStatusInfo()
       flow_status["icmp"] = flow.getICMPStatusInfo()
    end
@@ -130,9 +130,9 @@ end
 
 -- #################################################################
 
-local function triggerFlowAlert(info)
-   local cli_key = hostinfo2hostkey(hostkey2hostinfo(info["cli.ip"]), nil, true --[[ force VLAN]])
-   local srv_key = hostinfo2hostkey(hostkey2hostinfo(info["srv.ip"]), nil, true --[[ force VLAN]])
+local function triggerFlowAlert(l4_proto)
+   local cli_key = flow.getClientKey()
+   local srv_key = flow.getServerKey()
    local cli_disabled_status = hosts_disabled_status[cli_key] or 0
    local srv_disabled_status = hosts_disabled_status[srv_key] or 0
    local status_id = alerted_status.status_id
@@ -155,15 +155,21 @@ local function triggerFlowAlert(info)
          alertTypeRaw(alerted_status.alert_type.alert_id), alertSeverityRaw(alerted_status.alert_severity.severity_id)))
    end
 
-   local ticks_i = ntop.getticks()
+   alerted_status_msg = alerted_status_msg or {}
+
+   if(type(alerted_status_msg) == "table") then
+      -- NOTE: porting this to C is not feasable as the lua table can contain
+      -- arbitrary data
+      augumentFlowStatusInfo(l4_proto, alerted_status_msg)
+
+      -- Need to convert to JSON
+      alerted_status_msg = json.encode(alerted_status_msg)
+   end
 
    local triggered = flow.triggerAlert(status_id, 
       alerted_status.alert_type.alert_id,
       alerted_custom_severity or alerted_status.alert_severity.severity_id, 
       alerted_status_msg)
-
-   local ticks_e = ntop.getticks()
-   tprint(string.format("TOOK %sK ticks", (ticks_e - ticks_i)/1000))
 
    return(triggered)
 end
@@ -267,9 +273,13 @@ local function call_modules(l4_proto, mod_fn)
       flow.setPredominantStatus(predominant_status.status_id)
    end
 
-   if(alerted_status ~= nil) then
-      info = flow.getFullInfo()
-      triggerFlowAlert(info)
+   if((alerted_status ~= nil) and flow.canTriggerAlert()) then
+      local ticks_i = ntop.getticks()
+
+      triggerFlowAlert(l4_proto)
+
+      local ticks_e = ntop.getticks()
+      tprint(string.format("TOOK %sK ticks", (ticks_e - ticks_i)/1000))
    end
 
    return(rv)
