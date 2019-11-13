@@ -9414,7 +9414,30 @@ static int ntop_flow_trigger_alert(lua_State* vm) {
 
 /* ****************************************** */
 
-static int ntop_dequeue_sqlite_alert(lua_State* vm) {
+static int ntop_push_sqlite_alert(lua_State* vm) {
+  const char *alert;
+  bool rv;
+
+  if(ntop_lua_check(vm, __FUNCTION__, 1, LUA_TSTRING) != CONST_LUA_OK) return(CONST_LUA_ERROR);
+  alert = lua_tostring(vm, 1);
+
+  if(ntop->getSqliteAlertsQueue()->enqueue(alert))
+    rv = true;
+  else {
+    NetworkInterface *iface = getCurrentInterface(vm);
+    rv = false;
+
+    if(iface)
+      iface->incNumDroppedAlerts(1);
+  }
+
+  lua_pushboolean(vm, rv);
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_pop_sqlite_alert(lua_State* vm) {
   char *alert = ntop->getSqliteAlertsQueue()->dequeue();
 
   if(alert) {
@@ -9428,7 +9451,19 @@ static int ntop_dequeue_sqlite_alert(lua_State* vm) {
 
 /* ****************************************** */
 
-static int ntop_dequeue_alert_notification(lua_State* vm) {
+static int ntop_push_alert_notification(lua_State* vm) {
+  const char *notif;
+
+  if(ntop_lua_check(vm, __FUNCTION__, 1, LUA_TSTRING) != CONST_LUA_OK) return(CONST_LUA_ERROR);
+  notif = lua_tostring(vm, 1);
+
+  lua_pushboolean(vm, ntop->getAlertsNotificationsQueue()->enqueue(notif));
+  return(CONST_LUA_OK);
+}
+
+/* ****************************************** */
+
+static int ntop_pop_alert_notification(lua_State* vm) {
   char *notification = ntop->getAlertsNotificationsQueue()->dequeue();
 
   if(notification) {
@@ -11271,8 +11306,10 @@ static const luaL_Reg ntop_reg[] = {
   { "bitmapClear",           ntop_bitmap_clear          },
 
   /* Alerts queues */
-  { "dequeueSqliteAlert",       ntop_dequeue_sqlite_alert            },
-  { "dequeueAlertNotification", ntop_dequeue_alert_notification      },
+  { "pushSqliteAlert",       ntop_push_sqlite_alert           },
+  { "popSqliteAlert",        ntop_pop_sqlite_alert            },
+  { "pushAlertNotification", ntop_push_alert_notification     },
+  { "popAlertNotification",  ntop_pop_alert_notification      },
 
   /* nEdge */
 #ifdef HAVE_NEDGE
