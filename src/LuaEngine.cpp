@@ -9358,6 +9358,7 @@ static int ntop_flow_trigger_alert(lua_State* vm) {
   bool triggered = false;
   const char *status_info = NULL;
   u_int32_t buflen;
+  time_t now;
 
   if(!f) return(CONST_LUA_ERROR);
 
@@ -9376,8 +9377,11 @@ static int ntop_flow_trigger_alert(lua_State* vm) {
   if(ntop_lua_check(vm, __FUNCTION__, 3, LUA_TNUMBER) != CONST_LUA_OK) return(CONST_LUA_ERROR);
   severity = (AlertLevel)lua_tonumber(vm, 3);
 
-  if(lua_type(vm, 4) == LUA_TSTRING)
-    status_info = lua_tostring(vm, 4);
+  if(ntop_lua_check(vm, __FUNCTION__, 4, LUA_TNUMBER) != CONST_LUA_OK) return(CONST_LUA_ERROR);
+    now = (time_t) lua_tonumber(vm, 4);
+
+  if(lua_type(vm, 5) == LUA_TSTRING)
+    status_info = lua_tostring(vm, 5);
 
   if(f->triggerAlert(status, atype, severity, status_info)) {
     /* The alert was successfully triggered */
@@ -9393,7 +9397,7 @@ static int ntop_flow_trigger_alert(lua_State* vm) {
       ndpi_init_serializer(&flow_json, ndpi_serialization_format_json);
 
       /* Only proceed if there is some space in the queues */
-      f->flow2alertJson(&flow_json);
+      f->flow2alertJson(&flow_json, now);
       flow_str = ndpi_serializer_get_buffer(&flow_json, &buflen);
 
       if(flow_str) {

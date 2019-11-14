@@ -130,7 +130,7 @@ end
 
 -- #################################################################
 
-local function triggerFlowAlert(l4_proto)
+local function triggerFlowAlert(now, l4_proto)
    local cli_key = flow.getClientKey()
    local srv_key = flow.getServerKey()
    local cli_disabled_status = hosts_disabled_status[cli_key] or 0
@@ -166,10 +166,10 @@ local function triggerFlowAlert(l4_proto)
       alerted_status_msg = json.encode(alerted_status_msg)
    end
 
-   local triggered = flow.triggerAlert(status_id, 
+   local triggered = flow.triggerAlert(status_id,
       alerted_status.alert_type.alert_id,
-      alerted_custom_severity or alerted_status.alert_severity.severity_id, 
-      alerted_status_msg)
+      alerted_custom_severity or alerted_status.alert_severity.severity_id,
+      now, alerted_status_msg)
 
    return(triggered)
 end
@@ -276,7 +276,7 @@ local function call_modules(l4_proto, mod_fn)
    if((alerted_status ~= nil) and flow.canTriggerAlert()) then
       local ticks_i = ntop.getticks()
 
-      triggerFlowAlert(l4_proto)
+      triggerFlowAlert(now, l4_proto)
 
       local ticks_e = ntop.getticks()
       tprint(string.format("TOOK %sK ticks", (ticks_e - ticks_i)/1000))
