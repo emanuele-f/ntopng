@@ -8682,11 +8682,10 @@ static int ntop_flow_get_hash_entry_id(lua_State* vm) {
  * into the flow status_info */
 static int ntop_flow_get_icmp_status_info(lua_State* vm) {
   Flow *f = ntop_flow_get_context_flow(vm);
-  ICMPinfo *icmp_info;
 
   if(!f) return(CONST_LUA_ERROR);
 
-  if(f->isICMP()) {
+  if(f->getICMPInfo()) {
     u_int8_t icmp_type, icmp_code;
     u_int16_t echo_id;
 
@@ -8695,12 +8694,6 @@ static int ntop_flow_get_icmp_status_info(lua_State* vm) {
     lua_newtable(vm);
     lua_push_int32_table_entry(vm, "type", icmp_type);
     lua_push_int32_table_entry(vm, "code", icmp_code);
-
-    /* icmp_info is only available for packet interfaces */
-    if((icmp_info = f->getICMPInfo())) {
-      lua_newtable(vm);
-      icmp_info->lua(vm, NULL, f->getInterface(), f->get_vlan_id());
-    }
   } else
     lua_pushnil(vm);
 

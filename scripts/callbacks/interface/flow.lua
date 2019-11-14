@@ -274,12 +274,7 @@ local function call_modules(l4_proto, mod_fn)
    end
 
    if((alerted_status ~= nil) and flow.canTriggerAlert()) then
-      local ticks_i = ntop.getticks()
-
       triggerFlowAlert(now, l4_proto)
-
-      local ticks_e = ntop.getticks()
-      tprint(string.format("TOOK %sK ticks", (ticks_e - ticks_i)/1000))
    end
 
    return(rv)
