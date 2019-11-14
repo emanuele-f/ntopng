@@ -21,7 +21,7 @@
 
 #include "ntop_includes.h"
 
-//~ #define DEBUG_FIFO_QUEUE
+// #define DEBUG_FIFO_QUEUE
 
 FifoStringsQueue::FifoStringsQueue(u_int32_t queue_size) {
   m = new Mutex();
@@ -38,7 +38,7 @@ FifoStringsQueue::FifoStringsQueue(u_int32_t queue_size) {
 FifoStringsQueue::~FifoStringsQueue() {
   delete m;
 
-  while(head != tail) {
+  while(cur_items > 0) {
     if(items[head])
       free(items[head]);
 
@@ -116,3 +116,70 @@ char* FifoStringsQueue::dequeue() {
   m->unlock(__FILE__, __LINE__);
   return(rv);
 }
+
+/* make test_fifo_queue */
+#ifdef TEST_FIFO_QUEUE
+
+/* ******************************************* */
+
+void run_test_fifo_order() {
+  FifoStringsQueue q(5);
+  const char *item1 = "ABCDEF";
+  const char *item2 = "12345";
+
+  assert(q.enqueue(item1) == true);
+  assert(q.enqueue(item2) == true);
+  assert(q.getLength() == 2);
+  char *first = q.dequeue();
+  char *last = q.dequeue();
+  assert(!strcmp(first, item1));
+  assert(!strcmp(last, item2));
+  free(first);
+  free(last);
+
+  assert(q.dequeue() == NULL);
+  assert(q.getLength() == 0);
+}
+
+/* ******************************************* */
+
+void run_test_queue_full() {
+  FifoStringsQueue q(1);
+  const char *item1 = "ABCDEF";
+
+  q.enqueue(item1);
+  q.enqueue(item1);
+  q.enqueue(item1);
+
+  /* Check out valgrind --leak-check=full ./test_fifo_queue */
+}
+
+/* ******************************************* */
+
+void run_test_leaks() {
+  FifoStringsQueue q(1);
+  const char *item1 = "ABCDEF";
+  const char *item2 = "12345";
+
+  assert(q.enqueue(NULL) == false);
+  assert(q.enqueue(item1) == true);
+  assert(q.enqueue(item2) == false);
+  assert(q.getLength() == 1);
+  char *item = q.dequeue();
+  assert(!strcmp(item, item1));
+  free(item);
+}
+
+/* ******************************************* */
+
+int main() {
+  ntop = new Ntop((char*)"test");
+
+  run_test_fifo_order();
+  run_test_queue_full();
+  run_test_leaks();
+
+  delete ntop;
+}
+
+#endif /* TEST_FIFO_QUEUE */
