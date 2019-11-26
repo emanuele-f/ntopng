@@ -112,6 +112,9 @@ function checkAlerts(granularity)
       local config = host_config[check.key] or global_config[check.key]
       local do_call
 
+      -- TODO use conf
+      local conf = user_scripts.getEntityConfiguration(check, granularity, host_key, not is_localhost)
+
       if(check.is_alert) then
          -- Alert modules are only called if there is a configuration defined or always_enabled is set
          do_call = ((not suppressed_alerts) and (config or check.always_enabled))

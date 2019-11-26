@@ -346,7 +346,7 @@ end
 -- @brief Load the user scripts.
 -- @params script_type one of user_scripts.script_types
 -- @params ifid the interface ID
--- @params subdir the modules subdir
+-- @params subdir the modules subdir. *NOTE* this must be unique as it is used as a key.
 -- @params hook_filter if non nil, only load the user scripts for the specified hook
 -- @params ignore_disabled if true, also returns disabled user scripts
 -- @param do_benchmark if true, computes benchmarks for every hook
@@ -367,6 +367,7 @@ function user_scripts.load(script_type, ifid, subdir, hook_filter, ignore_disabl
    end
 
    local check_dirs = getScriptsDirectories(script_type, subdir)
+   local conf = user_scripts.loadConfiguration(ifid, subdir)
 
    for _, checks_dir in pairs(check_dirs) do
       package.path = checks_dir .. "/?.lua;" .. package.path
@@ -495,6 +496,9 @@ function user_scripts.load(script_type, ifid, subdir, hook_filter, ignore_disabl
 	       user_script.periodic_update_divisor = math.floor(user_script.periodic_update_seconds / 30)
 	    end
 
+	    -- Load the configuration
+	    user_script.conf = conf[user_script.key] or {}
+
             rv.modules[user_script.key] = user_script
          end
 
@@ -504,6 +508,100 @@ function user_scripts.load(script_type, ifid, subdir, hook_filter, ignore_disabl
 
    if(old_ifid ~= ifid) then
       interface.select(old_ifid)
+   end
+
+   return(rv)
+end
+
+-- ##############################################
+
+local function getConfigurationKey(ifid, subdir)
+   return(string.format("ntopng.prefs.ifid_%d.user_scripts.conf.%s", ifid, subdir))
+end
+
+-- ##############################################
+
+-- Get the user scripts configuration
+-- @param ifid: the interface ID
+-- @param subdir: the subdir
+-- @return a table
+-- {[hook] = {entity_value -> conf, ..., default -> def_conf}, ...}
+function user_scripts.loadConfiguration(ifid, subdir)
+   local key = getConfigurationKey(ifid, subdir)
+   local value = ntop.getPref(key)
+
+   if(not isEmptyString(value)) then
+      value = json.decode(value) or {}
+   else
+      value = {}
+   end
+
+   return(value)
+end
+
+-- ##############################################
+
+-- Save the user scripts configuration.
+-- @param ifid: the interface ID
+-- @param subdir: the subdir
+-- @param config: the configuration to save
+function user_scripts.saveConfiguration(ifid, subdir, config)
+   local key = getConfigurationKey(ifid, subdir)
+   local value = json.encode(config)
+
+   ntop.setPref(key, value)
+end
+
+-- ##############################################
+
+-- Get the configuration to use for a specific entity
+-- @param user_script the user script, loaded with user_scripts.load
+-- @param hook the hook function
+-- @param entity_value the entity value
+-- @param is_remote_host, for hosts only, indicates if the entity is a remote host
+-- @return the script configuration as a table
+function user_scripts.getEntityConfiguration(user_script, hook, entity_value, is_remote_host)
+   local rv = nil
+   local conf = user_script.conf[hook]
+
+   -- A configuration may not exist for the given hook
+   if(conf ~= nil) then
+      -- Search for this specific entity config
+      rv = conf[entity_value]
+   end
+
+   if(rv == nil) then
+      -- Search for a global/default configuration
+      rv = user_scripts.getGlobalConfiguration(user_script, hook, is_remote_host)
+   end
+
+   return(rv)
+end
+
+-- ##############################################
+
+function user_scripts.getGlobalKey(is_remote_host)
+  return(ternary(is_remote_host, "global_remote", "global"))
+end
+
+-- ##############################################
+
+-- Get the global configuration to use for a all the entities of this user_script
+-- @param user_script the user script, loaded with user_scripts.load
+-- @param hook the hook function
+-- @param is_remote_host, for hosts only, indicates if the entity is a remote host
+-- @return the script configuration as a table
+function user_scripts.getGlobalConfiguration(user_script, hook, is_remote_host)
+   local conf = user_script.conf[hook]
+   local rv = nil
+
+   if(conf ~= nil) then
+      rv = conf[user_scripts.getGlobalKey(is_remote_host)]
+   end
+
+   if(rv == nil) then
+      -- No Specific/Global configuration found, try defaults
+      rv = user_scripts.getDefaultConfigValue(user_script, hook)
    end
 
    return(rv)
@@ -622,6 +720,16 @@ function user_scripts.threshold_cross_input_builder(gui_conf, input_id, value)
     gui_conf.field_min or "0", gui_conf.field_max or "", gui_conf.field_step or "1",
     input_val, value.edge, i18n(gui_conf.i18n_field_unit))
   )
+end
+
+function user_scripts.threshold_cross_post_handler(input_id)
+  local input_op = "op_" .. input_id
+  local input_val = "value_" .. input_id
+
+  return {
+    operator = _POST[input_op],
+    edge = _POST[input_val],
+  }
 end
 
 -- ##############################################

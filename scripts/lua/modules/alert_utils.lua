@@ -1044,6 +1044,8 @@ function drawAlertSourceSettings(entity_type, alert_source, delete_button_msg, d
    local tab = _GET["tab"] or "min"
    local ts_utils = require("ts_utils")
    local ifid = interface.getId()
+   local entity_value = alert_source
+   local subdir = entity_type
 
    if interface.isPcapDumpInterface() then
       if entity_type == "interface" then
@@ -1138,13 +1140,40 @@ function drawAlertSourceSettings(entity_type, alert_source, delete_button_msg, d
          end
       end
 
+      local scripts_conf = nil
+      local update_conf = false
+
       if _POST["to_delete"] ~= "local" then
     if not table.empty(_POST) then
        to_save = true
+       scripts_conf = user_scripts.loadConfiguration(ifid, subdir)
     end
 
          -- TODO refactor this into the threshold cross checker
          for _, user_script in pairs(available_modules.modules) do
+	    if(scripts_conf ~= nil) then
+	       if(user_script.gui.post_handler ~= nil) then
+		  -- TODO remove in new gui
+		  for _, prefix in pairs({"", "global_"}) do
+		     local k = prefix .. user_script.key
+		     local is_global = (prefix == "global_")
+		     local conf = user_script.gui.post_handler(k)
+
+		     if(conf) then
+			local conf_key = ternary(is_global, user_scripts.getGlobalKey(options.remote_host), entity_value)
+
+			-- Update the configuration
+			scripts_conf[user_script.key] = scripts_conf[user_script.key] or {}
+			scripts_conf[user_script.key][conf_key] = conf
+			update_conf = true
+
+			-- Also update the script
+			user_script.conf[conf_key] = conf
+		     end
+		  end
+	       end
+	    end
+
             k = user_script.key
             value    = _POST["value_"..k]
             operator = _POST["op_"..k] or "gt"
@@ -1189,6 +1218,10 @@ function drawAlertSourceSettings(entity_type, alert_source, delete_button_msg, d
                alerts = alerts .. k .. ";" .. operator .. ";" .. value
             end
          end --END for k,_ in pairs(available_modules) do
+
+	 if update_conf then
+	    user_scripts.saveConfiguration(ifid, subdir, scripts_conf)
+	 end
 
          --print(alerts)
 
@@ -1317,6 +1350,16 @@ function drawAlertSourceSettings(entity_type, alert_source, delete_button_msg, d
 		  end
 
 		  print("</td><td>")
+
+		  local conf
+
+		  if is_global then
+		     conf = user_scripts.getGlobalConfiguration(user_script, tab, options.remote_host)
+		  else
+		     conf = user_scripts.getEntityConfiguration(user_script, tab, entity_value, options.remote_host)
+		  end
+
+		  -- TODO use conf
 
 		  print(user_script.gui.input_builder(user_script.gui or {}, k, value))
 	       end
