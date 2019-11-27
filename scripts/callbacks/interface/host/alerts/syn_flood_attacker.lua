@@ -7,7 +7,12 @@ local user_scripts = require("user_scripts")
 
 local script = {
   threshold_type_builder = alerts_api.synFloodType,
-  default_value = "syn_flood_attacker;gt;50",
+  default_enabled = true,
+  default_value = {
+    -- "> 50"
+    operator = "gt",
+    edge = 50,
+  },
 
   hooks = {
     min = alerts_api.threshold_check_function,
