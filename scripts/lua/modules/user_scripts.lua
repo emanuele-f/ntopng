@@ -317,7 +317,8 @@ end
 -- ##############################################
 
 local function getConfigurationKey(ifid, subdir)
-   return(string.format("ntopng.prefs.ifid_%d.user_scripts.conf.%s", ifid, subdir))
+   -- NOTE: strings needed by user_scripts.deleteConfigurations
+   return(string.format("ntopng.prefs.ifid_%s.user_scripts.conf.%s", ifid, subdir))
 end
 
 -- ##############################################
@@ -355,6 +356,41 @@ end
 
 -- ##############################################
 
+function user_scripts.deleteConfigurations()
+   deleteCachePattern(getConfigurationKey("*", "*"))
+end
+
+-- ##############################################
+
+-- This needs to be called whenever the available_modules.conf changes
+-- It updates the single scripts config
+local function reload_scripts_config(available_modules)
+   local scripts_conf = available_modules.conf
+
+   for _, script in pairs(available_modules.modules) do
+      script.conf = scripts_conf[script.key] or {}
+   end
+end
+
+-- ##############################################
+
+local function delete_script_conf(scripts_conf, key, hook, conf_key)
+   if(scripts_conf[key] and scripts_conf[key][hook]) then
+      scripts_conf[key][hook][conf_key] = nil
+
+      -- Cleanup empty tables
+      if table.empty(scripts_conf[key][hook]) then
+	 scripts_conf[key][hook] = nil
+
+	 if table.empty(scripts_conf[key]) then
+	    scripts_conf[key] = nil
+	 end
+      end
+   end
+end
+
+-- ##############################################
+
 -- @brief Load the user scripts.
 -- @param ifid the interface ID
 -- @param script_type one of user_scripts.script_types
@@ -367,7 +403,7 @@ end
 --  - scripts_filter: a filter function(user_script) -> true, false. false will cause the script to be skipped.
 -- @return {modules = key->user_script, hooks = user_script->function}
 function user_scripts.load(ifid, script_type, subdir, options)
-   local rv = {modules = {}, hooks = {}}
+   local rv = {modules = {}, hooks = {}, conf = {}}
    local is_nedge = ntop.isnEdge()
    local alerts_disabled = (not areAlertsEnabled())
    local old_ifid = interface.getId()
@@ -387,7 +423,7 @@ function user_scripts.load(ifid, script_type, subdir, options)
    end
 
    local check_dirs = getScriptsDirectories(script_type, subdir)
-   local conf = loadConfiguration(ifid, subdir)
+   rv.conf = loadConfiguration(ifid, subdir)
 
    for _, checks_dir in pairs(check_dirs) do
       package.path = checks_dir .. "/?.lua;" .. package.path
@@ -456,7 +492,7 @@ function user_scripts.load(ifid, script_type, subdir, options)
             end
 
 	    -- Load the configuration
-	    user_script.conf = conf[user_script.key] or {}
+	    user_script.conf = rv.conf[user_script.key] or {}
 
 	    -- TODO remove after gui migration
 	    if(user_script.gui and (user_script.gui.input_builder == nil)) then
@@ -581,7 +617,7 @@ end
 
 -- ##############################################
 
-function user_scripts.getGlobalKey(is_remote_host)
+local function get_global_conf_key(is_remote_host)
   return(ternary(is_remote_host, "global_remote", "global"))
 end
 
@@ -597,7 +633,7 @@ function user_scripts.getGlobalConfiguration(user_script, hook, is_remote_host)
    local rv = nil
 
    if(conf ~= nil) then
-      rv = conf[user_scripts.getGlobalKey(is_remote_host)]
+      rv = conf[get_global_conf_key(is_remote_host)]
    end
 
    if(rv == nil) then
@@ -606,6 +642,30 @@ function user_scripts.getGlobalConfiguration(user_script, hook, is_remote_host)
    end
 
    return(rv)
+end
+
+-- ##############################################
+
+-- Delete the configuration of a specific element (e.g. a specific host)
+function user_scripts.deleteSpecificConfiguration(ifid, subdir, available_modules, hook, entity_value)
+   hook = hook or NON_TRAFFIC_ELEMENT_CONF_KEY
+   entity_value = entity_value or NON_TRAFFIC_ELEMENT_ENTITY
+
+   local scripts_conf = available_modules.conf
+
+   for _, script in pairs(available_modules.modules) do
+      delete_script_conf(scripts_conf, script.key, hook, entity_value)
+   end
+
+   reload_scripts_config(available_modules)
+   saveConfiguration(ifid, subdir, scripts_conf)
+end
+
+-- ##############################################
+
+-- Delete the configuration for all the elements in subdir (e.g. all the hosts)
+function user_scripts.deleteGlobalConfiguration(ifid, subdir, available_modules, hook, remote_host)
+   return(user_scripts.deleteSpecificConfiguration(ifid, subdir, available_modules, hook, get_global_conf_key(remote_host)))
 end
 
 -- ##############################################
@@ -750,7 +810,7 @@ function user_scripts.handlePOST(ifid, subdir, available_modules, hook, entity_v
    hook = hook or NON_TRAFFIC_ELEMENT_CONF_KEY
    entity_value = entity_value or NON_TRAFFIC_ELEMENT_ENTITY
 
-   local scripts_conf = loadConfiguration(ifid, subdir)
+   local scripts_conf = available_modules.conf
 
    for _, user_script in pairs(available_modules.modules) do
       -- There are 3 different configurations:
@@ -775,7 +835,7 @@ function user_scripts.handlePOST(ifid, subdir, available_modules, hook, entity_v
 	 local is_global = (prefix == "global_")
 	 local enabled_k = "enabled_" .. k
 	 local is_enabled = _POST[enabled_k]
-	 local conf_key = ternary(is_global, user_scripts.getGlobalKey(remote_host), entity_value)
+	 local conf_key = ternary(is_global, get_global_conf_key(remote_host), entity_value)
 	 local script_conf = {}
 
 	 if(user_script.gui and (user_script.gui.post_handler ~= nil)) then
@@ -805,18 +865,9 @@ function user_scripts.handlePOST(ifid, subdir, available_modules, hook, entity_v
 	    scripts_conf[user_script.key] = scripts_conf[user_script.key] or {}
 	    scripts_conf[user_script.key][hook] = scripts_conf[user_script.key][hook] or {}
 	    scripts_conf[user_script.key][hook][conf_key] = cur_config
-
-	    -- Also update the script
-	    user_script.conf[hook] = user_script.conf[hook] or {}
-	    user_script.conf[hook][conf_key] = cur_config
 	 else
 	    -- Use the default
-	    if(scripts_conf[user_script.key] and scripts_conf[user_script.key][hook]) then
-	       scripts_conf[user_script.key][hook][conf_key] = nil
-	    end
-	    if(user_script.conf[hook]) then
-	       user_script.conf[hook][conf_key] = nil
-	    end
+	    delete_script_conf(scripts_conf, user_script.key, hook, conf_key)
 	 end
 
 	 -- Needed for specific_config vs global_config comparison
@@ -824,6 +875,7 @@ function user_scripts.handlePOST(ifid, subdir, available_modules, hook, entity_v
       end
    end
 
+   reload_scripts_config(available_modules)
    saveConfiguration(ifid, subdir, scripts_conf)
 end
 

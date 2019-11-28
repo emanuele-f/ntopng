@@ -26,6 +26,12 @@ if(ntop.isnEdge()) then
    shaper_utils = require("shaper_utils")
 end
 
+if ntop.isEnterprise() then
+   local dirs = ntop.getDirs()
+   package.path = dirs.installdir .. "/pro/scripts/lua/enterprise/modules/?.lua;" .. package.path
+   require "enterprise_alert_utils"
+end
+
 -- ##############################################
 
 function alertSeverityRaw(severity_id)
@@ -152,51 +158,6 @@ function sec2granularity(seconds)
 end
 
 -- ##############################################################################
-
-function getInterfacePacketDropPercAlertKey(ifname)
-   return "ntopng.prefs.iface_" .. getInterfaceId(ifname) .. ".packet_drops_alert"
-end
-
--- ##############################################################################
-
-if ntop.isEnterprise() then
-   local dirs = ntop.getDirs()
-   package.path = dirs.installdir .. "/pro/scripts/lua/enterprise/modules/?.lua;" .. package.path
-   require "enterprise_alert_utils"
-end
-
-j = require("dkjson")
-require "persistence"
-
-function is_allowed_timespan(timespan)
-   return(alert_consts.alerts_granularities[timespan] ~= nil)
-end
-
-function get_alerts_hash_name(timespan, ifname, entity_type)
-   local ifid = getInterfaceId(ifname)
-   if not is_allowed_timespan(timespan) or tonumber(ifid) == nil then
-      return nil
-   end
-
-   return "ntopng.prefs.alerts_"..timespan..".".. entity_type ..".ifid_"..tostring(ifid)
-end
-
--- Get the hash key used for saving global settings
-local function get_global_alerts_hash_key(entity_type, local_hosts)
-   if entity_type == "host" then
-      if local_hosts then
-        return "local_hosts"
-      else
-        return "remote_hosts"
-      end
-   elseif entity_type == "interface" then
-      return "interfaces"
-   elseif entity_type == "network" then
-      return "local_networks"
-   else
-      return "*"
-   end
-end
 
 function get_make_room_keys(ifId)
    return {flows="ntopng.cache.alerts.ifid_"..ifId..".make_room_flow_alerts",
@@ -818,14 +779,6 @@ end
 
 -- #################################
 
-local function getGlobalAlertsConfigurationHash(granularity, entity_type, local_hosts)
-   return 'ntopng.prefs.alerts_global.'..granularity.."."..get_global_alerts_hash_key(entity_type, local_hosts)
-end
-
-local global_redis_thresholds_key = "thresholds"
-
--- #################################
-
 local function printProbesTab(entity_probes, entity_type, entity_value, page_name, page_params, alt_name, options)
    local system_scripts = require("system_scripts_utils")
 
@@ -1054,58 +1007,22 @@ function drawAlertSourceSettings(entity_type, alert_source, delete_button_msg, d
       print('</ul>')
    end -- !isPcapDumpInterface
 
-   local global_redis_hash = getGlobalAlertsConfigurationHash(tab, entity_type, not options.remote_host)
-
    if((tab == "flows") and (entity_type == "interface")) then
       local flow_callbacks_utils = require "flow_callbacks_utils"
       flow_callbacks_utils.print_callbacks_config()
    else
-      -- Before doing anything we need to check if we need to save values
-      local vals = { }
-      local alerts = ""
-      local global_alerts = ""
-      local to_save = false
-
-      -- Needed to handle the defaults
       local available_modules = user_scripts.load(interface.getId(), user_scripts.script_types.traffic_element, entity_type)
       local no_modules_available = table.len(available_modules.modules) == 0
 
       if((_POST["to_delete"] ~= nil) and (_POST["SaveAlerts"] == nil)) then
          if _POST["to_delete"] == "local" then
-            -- Delete threshold configuration
-            ntop.delHashCache(get_alerts_hash_name(tab, ifname, entity_type), alert_source)
-            alerts = nil
-
-            -- Load the global settings normally
-            global_alerts = ntop.getHashCache(global_redis_hash, global_redis_thresholds_key)
+	    user_scripts.deleteSpecificConfiguration(ifid, subdir, available_modules, tab, entity_value)
          else
-            -- Only delete global configuration
-            ntop.delCache(global_redis_hash)
+	    user_scripts.deleteGlobalConfiguration(ifid, subdir, available_modules, tab, options.remote_host)
          end
+      elseif(not table.empty(_POST)) then
+	 user_scripts.handlePOST(ifid, subdir, available_modules, tab, entity_value, options.remote_host)
       end
-
-      if _POST["to_delete"] ~= "local" then
-	 if not table.empty(_POST) then
-	    user_scripts.handlePOST(ifid, subdir, available_modules, tab, entity_value, options.remote_host)
-	    to_save = true
-	 end
-
-         if(to_save and (_POST["to_delete"] == nil)) then
-            -- This specific entity alerts
-            if(alerts == "") then
-               ntop.delHashCache(get_alerts_hash_name(tab, ifname, entity_type), alert_source)
-            else
-               ntop.setHashCache(get_alerts_hash_name(tab, ifname, entity_type), alert_source, alerts)
-            end
-
-            -- Global alerts
-            if(global_alerts ~= "") then
-               ntop.setHashCache(global_redis_hash, global_redis_thresholds_key, global_alerts)
-            else
-               ntop.delHashCache(global_redis_hash, global_redis_thresholds_key)
-            end
-         end
-      end -- END if _POST["to_delete"] ~= nil
 
       local label
 
@@ -1181,7 +1098,6 @@ function drawAlertSourceSettings(entity_type, alert_source, delete_button_msg, d
 	    for _, prefix in pairs({"", "global_"}) do
 	       if user_script.gui.input_builder then
 		  local k = prefix..key
-		  local value = vals[k]
 		  local is_global = (prefix == "global_")
 		  local conf
 
@@ -2427,8 +2343,7 @@ function flushAlertsData()
    if(verbose) then io.write("[Alerts] Flushing Redis configuration...\n") end
    deleteCachePattern("ntopng.prefs.*alert*")
    deleteCachePattern("ntopng.alerts.*")
-   deleteCachePattern(getGlobalAlertsConfigurationHash("*", "*", true))
-   deleteCachePattern(getGlobalAlertsConfigurationHash("*", "*", false))
+   user_scripts.deleteConfigurations()
    alerts_api.purgeAlertsPrefs()
    for _, key in pairs(get_make_room_keys("*")) do deleteCachePattern(key) end
 
