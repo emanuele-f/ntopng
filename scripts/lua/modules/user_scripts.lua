@@ -316,20 +316,22 @@ end
 
 -- ##############################################
 
-local function getConfigurationKey(ifid, subdir)
+local function getConfigurationKey(subdir)
    -- NOTE: strings needed by user_scripts.deleteConfigurations
-   return(string.format("ntopng.prefs.ifid_%s.user_scripts.conf.%s", ifid, subdir))
+   -- NOTE: The configuration must not be saved under a specific ifid, since we
+   -- allow global interfaces configurations
+   return(string.format("ntopng.prefs.user_scripts.conf.%s", subdir))
 end
 
 -- ##############################################
 
 -- Get the user scripts configuration
--- @param ifid: the interface ID
 -- @param subdir: the subdir
 -- @return a table
 -- {[hook] = {entity_value -> {enabled=true, script_conf = {a = 1}, }, ..., default -> {enabled=false, script_conf = {}, }}, ...}
-local function loadConfiguration(ifid, subdir)
-   local key = getConfigurationKey(ifid, subdir)
+-- @note debug with: redis-cli get ntopng.prefs.user_scripts.conf.interface | python -m json.tool
+local function loadConfiguration(subdir)
+   local key = getConfigurationKey(subdir)
    local value = ntop.getPref(key)
 
    if(not isEmptyString(value)) then
@@ -344,20 +346,23 @@ end
 -- ##############################################
 
 -- Save the user scripts configuration.
--- @param ifid: the interface ID
 -- @param subdir: the subdir
 -- @param config: the configuration to save
-local function saveConfiguration(ifid, subdir, config)
-   local key = getConfigurationKey(ifid, subdir)
-   local value = json.encode(config)
+local function saveConfiguration(subdir, config)
+   local key = getConfigurationKey(subdir)
 
-   ntop.setPref(key, value)
+   if(table.empty(config)) then
+      ntop.delCache(key)
+   else
+      local value = json.encode(config)
+      ntop.setPref(key, value)
+   end
 end
 
 -- ##############################################
 
 function user_scripts.deleteConfigurations()
-   deleteCachePattern(getConfigurationKey("*", "*"))
+   deleteCachePattern(getConfigurationKey("*"))
 end
 
 -- ##############################################
@@ -423,7 +428,7 @@ function user_scripts.load(ifid, script_type, subdir, options)
    end
 
    local check_dirs = getScriptsDirectories(script_type, subdir)
-   rv.conf = loadConfiguration(ifid, subdir)
+   rv.conf = loadConfiguration(subdir)
 
    for _, checks_dir in pairs(check_dirs) do
       package.path = checks_dir .. "/?.lua;" .. package.path
@@ -647,7 +652,7 @@ end
 -- ##############################################
 
 -- Delete the configuration of a specific element (e.g. a specific host)
-function user_scripts.deleteSpecificConfiguration(ifid, subdir, available_modules, hook, entity_value)
+function user_scripts.deleteSpecificConfiguration(subdir, available_modules, hook, entity_value)
    hook = hook or NON_TRAFFIC_ELEMENT_CONF_KEY
    entity_value = entity_value or NON_TRAFFIC_ELEMENT_ENTITY
 
@@ -658,14 +663,14 @@ function user_scripts.deleteSpecificConfiguration(ifid, subdir, available_module
    end
 
    reload_scripts_config(available_modules)
-   saveConfiguration(ifid, subdir, scripts_conf)
+   saveConfiguration(subdir, scripts_conf)
 end
 
 -- ##############################################
 
 -- Delete the configuration for all the elements in subdir (e.g. all the hosts)
-function user_scripts.deleteGlobalConfiguration(ifid, subdir, available_modules, hook, remote_host)
-   return(user_scripts.deleteSpecificConfiguration(ifid, subdir, available_modules, hook, get_global_conf_key(remote_host)))
+function user_scripts.deleteGlobalConfiguration(subdir, available_modules, hook, remote_host)
+   return(user_scripts.deleteSpecificConfiguration(subdir, available_modules, hook, get_global_conf_key(remote_host)))
 end
 
 -- ##############################################
@@ -802,7 +807,7 @@ end
 
 -- ##############################################
 
-function user_scripts.handlePOST(ifid, subdir, available_modules, hook, entity_value, remote_host)
+function user_scripts.handlePOST(subdir, available_modules, hook, entity_value, remote_host)
    if(table.empty(_POST)) then
       return
    end
@@ -815,7 +820,7 @@ function user_scripts.handlePOST(ifid, subdir, available_modules, hook, entity_v
    for _, user_script in pairs(available_modules.modules) do
       -- There are 3 different configurations:
       --  - specific_config: the configuration specific of an host/interface/network
-      --  - global_config: the configuration specific for all the (local/remote) hosts (of an interface), interfaces, networks
+      --  - global_config: the configuration specific for all the (local/remote) hosts, interfaces, networks
       --  - default_config: the default configuration, specified by the user script
       -- They follow the follwing priorities:
       -- 	[lower] specific_config > global_config > default [upper]
@@ -876,7 +881,7 @@ function user_scripts.handlePOST(ifid, subdir, available_modules, hook, entity_v
    end
 
    reload_scripts_config(available_modules)
-   saveConfiguration(ifid, subdir, scripts_conf)
+   saveConfiguration(subdir, scripts_conf)
 end
 
 -- ##############################################

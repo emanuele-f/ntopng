@@ -1016,12 +1016,12 @@ function drawAlertSourceSettings(entity_type, alert_source, delete_button_msg, d
 
       if((_POST["to_delete"] ~= nil) and (_POST["SaveAlerts"] == nil)) then
          if _POST["to_delete"] == "local" then
-	    user_scripts.deleteSpecificConfiguration(ifid, subdir, available_modules, tab, entity_value)
+	    user_scripts.deleteSpecificConfiguration(subdir, available_modules, tab, entity_value)
          else
-	    user_scripts.deleteGlobalConfiguration(ifid, subdir, available_modules, tab, options.remote_host)
+	    user_scripts.deleteGlobalConfiguration(subdir, available_modules, tab, options.remote_host)
          end
       elseif(not table.empty(_POST)) then
-	 user_scripts.handlePOST(ifid, subdir, available_modules, tab, entity_value, options.remote_host)
+	 user_scripts.handlePOST(subdir, available_modules, tab, entity_value, options.remote_host)
       end
 
       local label

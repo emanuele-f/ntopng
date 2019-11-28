@@ -186,7 +186,7 @@ function flow_callbacks_utils.print_callbacks_config()
 <br>]]
 
    if table.len(_POST) > 0 then
-      user_scripts.handlePOST(ifid, "flow", descr)
+      user_scripts.handlePOST("flow", descr)
    end
 
    print[[<form id="flow-callbacks-config" class="form-inline" method="post">]]
