@@ -501,21 +501,6 @@ end
 
 -- ##############################################
 
-function alerts_api.synScanType(granularity, metric, value, operator, threshold)
-  return({
-    alert_type = alert_consts.alert_types.alert_tcp_syn_scan,
-    alert_subtype = metric,
-    alert_granularity = alert_consts.alerts_granularities[granularity],
-    alert_severity = alert_consts.alert_severities.error,
-    alert_type_params = {
-      value = value,
-      threshold = threshold,
-    }
-  })
-end
-
--- ##############################################
-
 function alerts_api.flowFloodType(granularity, metric, value, operator, threshold)
   return({
     alert_type = alert_consts.alert_types.alert_flows_flood,
@@ -999,6 +984,7 @@ end
 --   A function, which returns the current value to be compared agains the threshold
 -- The user_script may implement an additional threshold_type_builder function which
 -- which returns a type_info. Check alerts_api.thresholdCrossType for the threshold_type_builder signature.
+-- TODO remove
 function alerts_api.threshold_check_function(params)
   local alarmed = false
   local value = params.user_script.get_threshold_value(params.granularity, params.entity_info)
@@ -1012,6 +998,38 @@ function alerts_api.threshold_check_function(params)
     if(value < threshold_edge) then alarmed = true end
   else
     if(value > threshold_edge) then alarmed = true end
+  end
+
+  if(alarmed) then
+    return(alerts_api.trigger(params.alert_entity, threshold_type, nil, params.cur_alerts))
+  else
+    return(alerts_api.release(params.alert_entity, threshold_type, nil, params.cur_alerts))
+  end
+end
+
+-- ##############################################
+
+-- TODO document
+function alerts_api.checkThresholdAlert(params, alert_type, value)
+  local script = params.user_script
+  local threshold_config = params.alert_config
+  local alarmed = false
+
+  local threshold_type = {
+    alert_type = alert_type,
+    alert_subtype = script.key,
+    alert_granularity = alert_consts.alerts_granularities[params.granularity],
+    alert_severity = alert_consts.alert_severities.error,
+    alert_type_params = {
+      value = value,
+      threshold = threshold_config.threshold,
+    }
+  }
+
+  if(threshold_config.operator == "lt") then
+    if(value < threshold_config.edge) then alarmed = true end
+  else
+    if(value > threshold_config.edge) then alarmed = true end
   end
 
   if(alarmed) then

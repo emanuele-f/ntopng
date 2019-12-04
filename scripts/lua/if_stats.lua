@@ -48,6 +48,9 @@ msg = ""
 
 local disaggregation_criterion_key = "ntopng.prefs.dynamic_sub_interfaces.ifid_"..tostring(ifid)..".mode"
 
+local plugins_utils = require("plugins_utils")
+plugins_utils.loadPlugins()
+
 function inline_input_form(name, placeholder, tooltip, value, can_edit, input_opts, input_class)
    if(can_edit) then
       print('<input style="width:12em;" title="'..tooltip..'" '..(input_opts or "")..' class="form-control '..(input_class or "")..'" name="'..name..'" placeholder="'..placeholder..'" value="')

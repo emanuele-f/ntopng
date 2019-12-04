@@ -2397,6 +2397,10 @@ function formatAlertMessage(ifid, alert)
     end
   end
 
+  if(type(msg) == "table") then
+   return("")
+  end
+
   return(msg)
 end
 

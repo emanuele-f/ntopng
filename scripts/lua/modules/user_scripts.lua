@@ -8,6 +8,7 @@
 
 local os_utils = require("os_utils")
 local json = require("dkjson")
+local plugins_utils = require("plugins_utils")
 
 local user_scripts = {}
 
@@ -26,8 +27,9 @@ user_scripts.field_units = {
   syn_min = "field_units.syn_min",
 }
 
-local CALLBACKS_DIR = dirs.installdir .. "/scripts/callbacks"
-local PRO_CALLBACKS_DIR = dirs.installdir .. "/pro/scripts/callbacks"
+--~ local CALLBACKS_DIR = dirs.installdir .. "/scripts/callbacks"
+local CALLBACKS_DIR = plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks"
+--~ local PRO_CALLBACKS_DIR = dirs.installdir .. "/pro/scripts/callbacks"
 local NON_TRAFFIC_ELEMENT_CONF_KEY = "all"
 local NON_TRAFFIC_ELEMENT_ENTITY = "no_entity"
 
@@ -73,7 +75,7 @@ local benchmarks = {}
 -- ##############################################
 
 function user_scripts.getSubdirectoryPath(script_type, subdir, is_pro)
-  local prefix = ternary(is_pro, PRO_CALLBACKS_DIR, CALLBACKS_DIR)
+  local prefix = CALLBACKS_DIR
   local path
 
   if not isEmptyString(subdir) and subdir ~= "." then
@@ -266,14 +268,14 @@ local function getScriptsDirectories(script_type, subdir)
       user_scripts.getSubdirectoryPath(script_type, subdir) .. "/alerts",
    }
 
-   if ntop.isPro() then
-      check_dirs[#check_dirs + 1] = user_scripts.getSubdirectoryPath(script_type, subdir, true --[[ pro ]])
-      check_dirs[#check_dirs + 1] = user_scripts.getSubdirectoryPath(script_type, subdir, true --[[ pro ]]) .. "/alerts"
+   --~ if ntop.isPro() then
+      --~ check_dirs[#check_dirs + 1] = user_scripts.getSubdirectoryPath(script_type, subdir, true --[[ pro ]])
+      --~ check_dirs[#check_dirs + 1] = user_scripts.getSubdirectoryPath(script_type, subdir, true --[[ pro ]]) .. "/alerts"
 
-      if ntop.isEnterprise() then
-         check_dirs[#check_dirs + 1] = user_scripts.getSubdirectoryPath(script_type, subdir, true --[[ pro ]]) .. "/enterprise"
-      end
-   end
+      --~ if ntop.isEnterprise() then
+         --~ check_dirs[#check_dirs + 1] = user_scripts.getSubdirectoryPath(script_type, subdir, true --[[ pro ]]) .. "/enterprise"
+      --~ end
+   --~ end
 
    return(check_dirs)
 end
@@ -504,12 +506,17 @@ function user_scripts.load(ifid, script_type, subdir, options)
 	       user_script.gui.input_builder = user_scripts.checkbox_input_builder
 	    end
 	    if(user_script.gui and user_script.gui.post_handler == nil) then
-	       user_script.gui.post_handler = user_scripts.checkbox_post_handler
+	       user_script.gui.post_handler = user_scripts.getDefaultPostHandler(user_script.gui.input_builder) or user_scripts.checkbox_post_handler
 	    end
 	    -- end TODO
 
 	    if(user_script.gui and user_script.gui.input_builder and (not user_script.gui.post_handler)) then
-	       traceError(TRACE_WARNING, TRACE_CONSOLE, string.format("Module '%s' is missing the gui.post_handler", user_script.key))
+	       -- Try to use a default post handler
+	       user_script.gui.post_handler = user_scripts.getDefaultPostHandler(user_script.gui.input_builder)
+
+	       if(user_script.gui.post_handler == nil) then
+		  traceError(TRACE_WARNING, TRACE_CONSOLE, string.format("Module '%s' is missing the gui.post_handler", user_script.key))
+	       end
 	    end
 
 	    if(scripts_filter ~= nil) then
@@ -773,7 +780,7 @@ function user_scripts.threshold_cross_input_builder(gui_conf, input_id, value)
 </select> <input type="number" class="text-right form-control" min="%s" max="%s" step="%s" style="display:inline; width:12em;" name="%s" value="%s"/> <span>%s</span>]],
     input_op, gt_selected, lt_selected,
     gui_conf.field_min or "0", gui_conf.field_max or "", gui_conf.field_step or "1",
-    input_val, value.edge, i18n(gui_conf.i18n_field_unit))
+    input_val, value.threshold, i18n(gui_conf.i18n_field_unit))
   )
 end
 
@@ -784,9 +791,20 @@ function user_scripts.threshold_cross_post_handler(input_id)
   if(input_val ~= nil) then
     return {
       operator = input_op,
-      edge = input_val,
+      threshold = input_val,
     }
   end
+end
+
+-- ##############################################
+
+-- For built-in input_builders, return the _POST handler to use
+local input_builder_to_post_handler = {
+   [user_scripts.threshold_cross_input_builder] = user_scripts.threshold_cross_post_handler,
+}
+
+function user_scripts.getDefaultPostHandler(input_builder)
+   return(input_builder_to_post_handler[input_builder])
 end
 
 -- ##############################################

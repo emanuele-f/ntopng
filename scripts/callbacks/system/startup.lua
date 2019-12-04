@@ -24,9 +24,11 @@ local lists_utils = require "lists_utils"
 local recovery_utils = require "recovery_utils"
 local delete_data_utils = require "delete_data_utils"
 local ts_utils = require "ts_utils"
+local plugins_utils = require "plugins_utils"
 
 local prefs = ntop.getPrefs()
 
+plugins_utils.loadPlugins()
 host_pools_utils.initPools()
 
 if(ntop.isPro()) then
