@@ -149,21 +149,23 @@ local function print_callbacks_config_table(descr, expert_view)
    local avg_speed = (total_stats.tot_num_calls / total_stats.tot_elapsed)
 
    -- Print total stats
-   print("</tr><tr><td><b>" .. i18n("total") .. "</b></td><td class='text-center'>")
-   if(ts_utils.exists("flow_user_script:total_stats", {ifid=ifid, subdir="flow"})) then
-      print('<a href="'.. ntop.getHttpPrefix() ..'/lua/user_script_details.lua?ifid='..ifid..'&subdir=flow&user_script='.. total_user_module ..'&ts_schema=custom:flow_user_script:total_stats"><i class="fa fa-area-chart fa-lg"></i></a>')
+   if total_user_module then
+      print("</tr><tr><td><b>" .. i18n("total") .. "</b></td><td class='text-center'>")
+      if(ts_utils.exists("flow_user_script:total_stats", {ifid=ifid, subdir="flow"})) then
+	 print('<a href="'.. ntop.getHttpPrefix() ..'/lua/user_script_details.lua?ifid='..ifid..'&subdir=flow&user_script='.. total_user_module ..'&ts_schema=custom:flow_user_script:total_stats"><i class="fa fa-area-chart fa-lg"></i></a>')
+      end
+      print("<td>")
+      if(expert_view) then
+	 print("<td></td>")
+      end
+      print("<td class='text-center'>")
+      print(format_utils.secondsToTime(total_stats.tot_elapsed))
+      print("</td><td class='text-center'>")
+      print(format_utils.formatValue(total_stats.tot_num_calls))
+      print("</td><td class='text-center'>")
+      --~ print(format_utils.formatValue(round(avg_speed, 0)))
+      print("</td></tr>")
    end
-   print("<td>")
-   if(expert_view) then
-      print("<td></td>")
-   end
-   print("<td class='text-center'>")
-   print(format_utils.secondsToTime(total_stats.tot_elapsed))
-   print("</td><td class='text-center'>")
-   print(format_utils.formatValue(total_stats.tot_num_calls))
-   print("</td><td class='text-center'>")
-   --~ print(format_utils.formatValue(round(avg_speed, 0)))
-   print("</td></tr>")
 
    print("</tr>")
    print[[</table>]]

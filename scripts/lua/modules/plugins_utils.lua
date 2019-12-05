@@ -10,8 +10,9 @@ require "lua_trace"
 
 local dirs = ntop.getDirs()
 
--- TODO support pro/enterprise
-plugins_utils.PLUGINS_SOURCE_DIR = os_utils.fixPath(dirs.scriptdir .. "/plugins")
+plugins_utils.COMMUNITY_SOURCE_DIR = os_utils.fixPath(dirs.scriptdir .. "/plugins")
+plugins_utils.PRO_SOURCE_DIR = os_utils.fixPath(dirs.installdir .. "/pro/scripts/pro_plugins")
+plugins_utils.ENTERPRISE_SOURCE_DIR = os_utils.fixPath(dirs.installdir .. "/pro/scripts/enterprise_plugins")
 
 -- TODO: use more appropriate runtime path
 plugins_utils.PLUGINS_RUNTIME_PATH = os_utils.fixPath(dirs.workingdir .. "/plugins")
@@ -22,25 +23,36 @@ local RUNTIME_PATHS = {}
 
 function plugins_utils.listPlugins()
   local plugins = {}
+  local source_dirs = {plugins_utils.COMMUNITY_SOURCE_DIR}
 
-  for plugin_name in pairs(ntop.readdir(plugins_utils.PLUGINS_SOURCE_DIR)) do
-    local plugin_dir = os_utils.fixPath(plugins_utils.PLUGINS_SOURCE_DIR .. "/" .. plugin_name)
-    local plugin_info = os_utils.fixPath(plugin_dir .. "/plugin.lua")
+  if ntop.isPro() then
+    source_dirs[#source_dirs + 1] = plugins_utils.PRO_SOURCE_DIR
 
-    if ntop.exists(plugin_info) then
-      -- Using loadfile instead of require is needed since the plugin.lua
-      -- name is the same across the plusings
-      local metadata = assert(loadfile(plugin_info))()
+    if ntop.isEnterprise() then
+      source_dirs[#source_dirs + 1] = plugins_utils.ENTERPRISE_SOURCE_DIR
+    end
+  end
 
-      -- Augument information
-      metadata.path = plugin_dir
-      metadata.key = plugin_name
+  for _, source_dir in ipairs(source_dirs) do
+    for plugin_name in pairs(ntop.readdir(source_dir)) do
+      local plugin_dir = os_utils.fixPath(source_dir .. "/" .. plugin_name)
+      local plugin_info = os_utils.fixPath(plugin_dir .. "/plugin.lua")
 
-      -- TODO check plugin dependencies
+      if ntop.exists(plugin_info) then
+        -- Using loadfile instead of require is needed since the plugin.lua
+        -- name is the same across the plusings
+        local metadata = assert(loadfile(plugin_info))()
 
-      plugins[plugin_name] = metadata
-    else
-      traceError(TRACE_ERROR, TRACE_CONSOLE, string.format("Missing plugin.lua in '%s'", plugin_name))
+        -- Augument information
+        metadata.path = plugin_dir
+        metadata.key = plugin_name
+
+        -- TODO check plugin dependencies
+
+        plugins[plugin_name] = metadata
+      else
+        traceError(TRACE_ERROR, TRACE_CONSOLE, string.format("Missing plugin.lua in '%s'", plugin_name))
+      end
     end
   end
 
@@ -68,8 +80,11 @@ local function init_runtime_paths()
     host_alerts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/interface/host/alerts"),
     network_scripts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/interface/network"),
     network_alerts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/interface/network/alerts"),
+    flow_scripts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/interface/flow"),
+    flow_alerts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/interface/flow/alerts"),
     syslog = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/syslog"),
-    system = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/system"),
+    snmp_scripts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/system/snmp_device"),
+    snmp_alerts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/system/snmp_device/alerts"),
   }
 end
 
@@ -179,8 +194,11 @@ local function load_plugin_user_scripts(plugin)
     recursive_copy(os_utils.fixPath(scripts_path .. "/alerts/host"), RUNTIME_PATHS.host_alerts) and
     recursive_copy(os_utils.fixPath(scripts_path .. "/network"), RUNTIME_PATHS.network_scripts) and
     recursive_copy(os_utils.fixPath(scripts_path .. "/alerts/network"), RUNTIME_PATHS.network_alerts) and
+    recursive_copy(os_utils.fixPath(scripts_path .. "/flow"), RUNTIME_PATHS.flow_scripts) and
+    recursive_copy(os_utils.fixPath(scripts_path .. "/alerts/flow"), RUNTIME_PATHS.flow_alerts) and
     recursive_copy(os_utils.fixPath(scripts_path .. "/syslog"), RUNTIME_PATHS.syslog) and
-    recursive_copy(os_utils.fixPath(scripts_path .. "/system"), RUNTIME_PATHS.system)
+    recursive_copy(os_utils.fixPath(scripts_path .. "/snmp_device"), RUNTIME_PATHS.snmp_scripts) and
+    recursive_copy(os_utils.fixPath(scripts_path .. "/alerts/snmp_device"), RUNTIME_PATHS.snmp_alerts)
   )
 end
 

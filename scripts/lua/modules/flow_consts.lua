@@ -20,7 +20,7 @@ flow_consts.custom_status_5 = 63
 
 function flow_consts.getDefinititionsDir()
     local dirs = ntop.getDirs()
-    return(os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/status_defs"))
+    return(os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/status_definitions"))
 end
 
 -- ################################################################################
