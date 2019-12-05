@@ -624,6 +624,11 @@ function user_scripts.getConfiguration(user_script, hook, entity_value, is_remot
       rv = user_scripts.getGlobalConfiguration(user_script, hook, is_remote_host)
    end
 
+   if(rv.script_conf == nil) then
+      -- Use the default
+      rv.script_conf = user_script.default_value or {}
+   end
+
    return(rv)
 end
 
@@ -859,10 +864,10 @@ function user_scripts.handlePOST(subdir, available_modules, hook, entity_value, 
 	 local enabled_k = "enabled_" .. k
 	 local is_enabled = _POST[enabled_k]
 	 local conf_key = ternary(is_global, get_global_conf_key(remote_host), entity_value)
-	 local script_conf = {}
+	 local script_conf = nil
 
 	 if(user_script.gui and (user_script.gui.post_handler ~= nil)) then
-	    script_conf = user_script.gui.post_handler(k) or {}
+	    script_conf = user_script.gui.post_handler(k)
 	 end
 
 	 if(is_enabled == nil) then
