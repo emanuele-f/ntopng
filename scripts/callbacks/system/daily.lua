@@ -27,4 +27,8 @@ if ntop.getPref("ntopng.prefs.midnight_stats_reset_enabled") == "1" then
    ntop.resetStats()
 end
 
+-- TODO remove
 system_scripts.runTask("daily", when)
+
+-- Run hourly scripts
+ntop.checkSystemScriptsDay()

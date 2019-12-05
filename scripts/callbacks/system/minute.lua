@@ -19,5 +19,9 @@ if(prefs_changed == "true") then
    prefs_dump_utils.savePrefsToDisk()
 end
 
+-- TODO remove
 local when = os.time()
 system_scripts.runTask("minute", when)
+
+-- Run minute scripts
+ntop.checkSystemScriptsMin()

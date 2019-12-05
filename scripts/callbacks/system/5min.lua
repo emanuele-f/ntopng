@@ -11,4 +11,8 @@ if ntop.isPro() then
    require "5min"
 end
 
+-- TODO remove
 system_scripts.runTask("5min", when)
+
+-- Run hourly scripts
+ntop.checkSystemScripts5Min()

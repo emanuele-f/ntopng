@@ -85,6 +85,8 @@ local function init_runtime_paths()
     syslog = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/syslog"),
     snmp_scripts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/system/snmp_device"),
     snmp_alerts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/system/snmp_device/alerts"),
+    system_scripts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/system/system"),
+    system_alerts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/system/system/alerts"),
   }
 end
 
@@ -198,7 +200,9 @@ local function load_plugin_user_scripts(plugin)
     recursive_copy(os_utils.fixPath(scripts_path .. "/alerts/flow"), RUNTIME_PATHS.flow_alerts) and
     recursive_copy(os_utils.fixPath(scripts_path .. "/syslog"), RUNTIME_PATHS.syslog) and
     recursive_copy(os_utils.fixPath(scripts_path .. "/snmp_device"), RUNTIME_PATHS.snmp_scripts) and
-    recursive_copy(os_utils.fixPath(scripts_path .. "/alerts/snmp_device"), RUNTIME_PATHS.snmp_alerts)
+    recursive_copy(os_utils.fixPath(scripts_path .. "/alerts/snmp_device"), RUNTIME_PATHS.snmp_alerts) and
+    recursive_copy(os_utils.fixPath(scripts_path .. "/system"), RUNTIME_PATHS.system_scripts) and
+    recursive_copy(os_utils.fixPath(scripts_path .. "/alerts/system"), RUNTIME_PATHS.system_alerts)
   )
 end
 

@@ -13,4 +13,9 @@ local system_scripts = require("system_scripts_utils")
 
 remote_assistance.checkExpiration()
 lists_utils.downloadLists()
+
+-- TODO remove
 system_scripts.runTask("hourly", when)
+
+-- Run hourly scripts
+ntop.checkSystemScriptsHour()
