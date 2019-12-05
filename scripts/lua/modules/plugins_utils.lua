@@ -25,11 +25,12 @@ function plugins_utils.listPlugins()
 
   for plugin_name in pairs(ntop.readdir(plugins_utils.PLUGINS_SOURCE_DIR)) do
     local plugin_dir = os_utils.fixPath(plugins_utils.PLUGINS_SOURCE_DIR .. "/" .. plugin_name)
+    local plugin_info = os_utils.fixPath(plugin_dir .. "/plugin.lua")
 
-    if ntop.exists(plugin_dir .. "/plugin.lua") then
-      package.path = plugin_dir .. "/?.lua;" .. package.path
-
-      local metadata = require("plugin")
+    if ntop.exists(plugin_info) then
+      -- Using loadfile instead of require is needed since the plugin.lua
+      -- name is the same across the plusings
+      local metadata = assert(loadfile(plugin_info))()
 
       -- Augument information
       metadata.path = plugin_dir
@@ -38,6 +39,8 @@ function plugins_utils.listPlugins()
       -- TODO check plugin dependencies
 
       plugins[plugin_name] = metadata
+    else
+      traceError(TRACE_ERROR, TRACE_CONSOLE, string.format("Missing plugin.lua in '%s'", plugin_name))
     end
   end
 
@@ -136,7 +139,7 @@ local function load_plugin_i18n(locales, default_locale, plugin)
   local locales_path = ntop.readdir(locales_dir)
 
   if table.empty(locales_path) then
-    return
+    return(true)
   end
 
   -- Ensure that the plugin localization will not override any existing

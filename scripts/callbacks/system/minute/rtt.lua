@@ -6,6 +6,7 @@ local ts_utils = require("ts_utils_core")
 local rtt_utils = require("rtt_utils")
 local format_utils = require("format_utils")
 local alerts_api = require("alerts_api")
+local alert_consts = require("alert_consts")
 
 local probe = {
   name = "RTT Monitor",
@@ -59,9 +60,22 @@ end
 
 -- ##############################################
 
+local function pingIssuesType(value, threshold, ip)
+  return({
+    alert_type = alert_consts.alert_types.alert_ping_issues,
+    alert_severity = alert_consts.alert_severities.warning,
+    alert_granularity = alert_consts.alerts_granularities.min,
+    alert_type_params = {
+      value = value, threshold = threshold, ip = ip,
+    }
+  })
+end
+
+-- ##############################################
+
 function probe.triggerRttAlert(numeric_ip, ip_label, current_value, upper_threshold)
   local entity_info = alerts_api.pingedHostEntity(ip_label)
-  local type_info = alerts_api.pingIssuesType(current_value, upper_threshold, numeric_ip)
+  local type_info = pingIssuesType(current_value, upper_threshold, numeric_ip)
 
   return alerts_api.trigger(entity_info, type_info)
 end
@@ -70,7 +84,7 @@ end
 
 function probe.releaseRttAlert(numeric_ip, ip_label, current_value, upper_threshold)
   local entity_info = alerts_api.pingedHostEntity(ip_label)
-  local type_info = alerts_api.pingIssuesType(current_value, upper_threshold, numeric_ip)
+  local type_info = pingIssuesType(current_value, upper_threshold, numeric_ip)
 
   return alerts_api.release(entity_info, type_info)
 end

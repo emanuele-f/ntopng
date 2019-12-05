@@ -516,19 +516,6 @@ end
 
 -- ##############################################
 
-function alerts_api.pingIssuesType(value, threshold, ip)
-  return({
-    alert_type = alert_consts.alert_types.alert_ping_issues,
-    alert_severity = alert_consts.alert_severities.warning,
-    alert_granularity = alert_consts.alerts_granularities.min,
-    alert_type_params = {
-      value = value, threshold = threshold, ip = ip,
-    }
-  })
-end
-
--- ##############################################
-
 function alerts_api.userActivityType(scope, name, params, remote_addr, status)
   return({
     alert_type = alert_consts.alert_types.alert_user_activity,
@@ -1027,9 +1014,9 @@ function alerts_api.checkThresholdAlert(params, alert_type, value)
   }
 
   if(threshold_config.operator == "lt") then
-    if(value < threshold_config.edge) then alarmed = true end
+    if(value < threshold_config.threshold) then alarmed = true end
   else
-    if(value > threshold_config.edge) then alarmed = true end
+    if(value > threshold_config.threshold) then alarmed = true end
   end
 
   if(alarmed) then

@@ -5,7 +5,7 @@
 return {
   title = "SYN Scan detector",
   description = "Detected SYN scan attacks on hosts and networks and triggers alerts",
-  author = "ntop <developers@ntop.org>",
+  author = "ntop",
   version = 1,
   dependencies = {},
 }
