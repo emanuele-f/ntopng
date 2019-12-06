@@ -96,11 +96,11 @@ local function init_runtime_paths()
     alert_definitions = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/alert_definitions"),
     status_definitions = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/status_definitions"),
 
-    -- Modules
-    modules = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/modules"),
-
     -- Locales
     locales = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/locales"),
+
+    -- Timeseries
+    ts_schemas = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/ts_schemas"),
 
     -- User scripts
     interface_scripts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/interface/interface"),
@@ -168,8 +168,19 @@ end
 
 -- ##############################################
 
-local function load_plugin_modules(plugin)
-  return(recursive_copy(os_utils.fixPath(plugin.path .. "/modules"), RUNTIME_PATHS.modules))
+local function load_plugin_ts_schemas(plugin)
+  local src_path = os_utils.fixPath(plugin.path .. "/ts_schemas")
+  local ts_path = os_utils.fixPath(RUNTIME_PATHS.ts_schemas .. "/" .. plugin.key)
+
+  if ntop.exists(src_path) then
+    ntop.mkdir(ts_path)
+
+    return(
+      recursive_copy(src_path, ts_path)
+    )
+  end
+
+  return(true)
 end
 
 -- ##############################################
@@ -246,7 +257,7 @@ function plugins_utils.loadPlugins()
   for _, plugin in pairs(plugins) do
     if load_plugin_definitions(plugin) and
         load_plugin_i18n(locales, en_locale, plugin) and
-        load_plugin_modules(plugin) and
+        load_plugin_ts_schemas(plugin) and
         load_plugin_user_scripts(plugin) then
       if do_trace then
         print(string.format("Successfully loaded plugin %s\n", plugin.key))
@@ -262,6 +273,43 @@ function plugins_utils.loadPlugins()
 
     persistence.store(locale_path, plugins_locales)
   end
+end
+
+-- ##############################################
+
+local schemas_loaded = {}
+
+function plugins_utils.loadSchemas(granularity)
+  if(schemas_loaded["all"] or (granularity and schemas_loaded[granularity])) then
+    -- already loaded
+    return
+  end
+
+  init_runtime_paths()
+
+  for plugin_name in pairs(ntop.readdir(RUNTIME_PATHS.ts_schemas)) do
+    local ts_dir = os_utils.fixPath(RUNTIME_PATHS.ts_schemas .. "/" .. plugin_name)
+    local files_to_load = nil
+
+    if(granularity ~= nil) then
+      -- Only load schemas for the specified granularity
+      files_to_load = {granularity .. ".lua"}
+    else
+      -- load all
+      files_to_load = ntop.readdir(ts_dir)
+    end
+
+    for _, fname in pairs(files_to_load) do
+      local fpath = os_utils.fixPath(ts_dir .. "/" .. fname)
+
+      if(string.ends(fpath, ".lua") and ntop.exists(fpath)) then
+        -- load the script
+        assert(loadfile(fpath))()
+      end
+    end
+  end
+
+  schemas_loaded[granularity or "all"] = true
 end
 
 -- ##############################################

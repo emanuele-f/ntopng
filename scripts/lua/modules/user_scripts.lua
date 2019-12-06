@@ -27,9 +27,7 @@ user_scripts.field_units = {
   syn_min = "field_units.syn_min",
 }
 
---~ local CALLBACKS_DIR = dirs.installdir .. "/scripts/callbacks"
 local CALLBACKS_DIR = plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks"
---~ local PRO_CALLBACKS_DIR = dirs.installdir .. "/pro/scripts/callbacks"
 local NON_TRAFFIC_ELEMENT_CONF_KEY = "all"
 local NON_TRAFFIC_ELEMENT_ENTITY = "no_entity"
 
@@ -268,17 +266,7 @@ end
 local function getScriptsDirectories(script_type, subdir)
    local check_dirs = {
       user_scripts.getSubdirectoryPath(script_type, subdir),
-      user_scripts.getSubdirectoryPath(script_type, subdir) .. "/alerts",
    }
-
-   --~ if ntop.isPro() then
-      --~ check_dirs[#check_dirs + 1] = user_scripts.getSubdirectoryPath(script_type, subdir, true --[[ pro ]])
-      --~ check_dirs[#check_dirs + 1] = user_scripts.getSubdirectoryPath(script_type, subdir, true --[[ pro ]]) .. "/alerts"
-
-      --~ if ntop.isEnterprise() then
-         --~ check_dirs[#check_dirs + 1] = user_scripts.getSubdirectoryPath(script_type, subdir, true --[[ pro ]]) .. "/enterprise"
-      --~ end
-   --~ end
 
    return(check_dirs)
 end
@@ -415,10 +403,14 @@ end
 function user_scripts.load(ifid, script_type, subdir, options)
    local rv = {modules = {}, hooks = {}, conf = {}}
    local is_nedge = ntop.isnEdge()
+   local is_windows = ntop.isWindows()
    local alerts_disabled = (not areAlertsEnabled())
    local old_ifid = interface.getId()
-
    options = options or {}
+
+   -- Load additional schemas
+   plugins_utils.loadSchemas(options.hook_filter)
+
    local hook_filter = options.hook_filter
    local do_benchmark = options.do_benchmark
    local return_all = options.return_all
@@ -467,6 +459,10 @@ function user_scripts.load(ifid, script_type, subdir, options)
             end
 
             if((not return_all) and ((user_script.nedge_exclude and is_nedge) or (user_script.nedge_only and (not is_nedge)))) then
+               goto next_module
+            end
+
+            if((not return_all) and (user_script.windows_exclude and is_windows)) then
                goto next_module
             end
 

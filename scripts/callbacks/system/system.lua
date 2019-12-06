@@ -16,6 +16,7 @@ local do_print_benchmark = false   -- Print benchmarks results to standard outpu
 local do_trace = false             -- Trace lua calls
 
 local available_modules = nil
+local system_ts_enabled = nil
 
 -- #################################################################
 
@@ -26,6 +27,8 @@ function setup(str_granularity)
    interface.select(getSystemInterfaceId())
    ifid = interface.getId()
    local ifname = getInterfaceName(tostring(ifid))
+
+   system_ts_enabled = (ntop.getPref("ntopng.prefs.system_probes_timeseries") ~= "0")
 
    -- Load the threshold checking functions
    available_modules = user_scripts.load(ifid, user_scripts.script_types.system, "system", {
@@ -54,6 +57,7 @@ function checkAlerts(granularity)
 
   local granularity_id = alert_consts.alerts_granularities[granularity].granularity_id
   local suppressed_alerts = false
+  local when = os.time()
   --~ local cur_alerts = host.getAlerts(granularity_id)
 
   for mod_key, hook_fn in pairs(available_modules.hooks[granularity]) do
@@ -66,6 +70,8 @@ function checkAlerts(granularity)
            granularity = granularity,
            alert_config = conf.script_conf,
            user_script = user_script,
+           when = when,
+           ts_enabled = system_ts_enabled,
 	   --cur_alerts = cur_alerts
         })
       end
