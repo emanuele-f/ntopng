@@ -10,12 +10,6 @@ local script
 -- #################################################################
 
 local function check_interface_drops(params)
-  -- Temporary check to avoid calling this when the toggle is off
-  if(params.alert_config.edge == "0") then
-    -- TODO remove this check after refactoring config code
-    return
-  end
-
   local info = params.entity_info
   local num_dropped = info.stats.num_dropped_flow_scripts_calls
   local delta_dropped = alerts_api.interface_delta_val(script.key, params.granularity, num_dropped)

@@ -5,7 +5,7 @@
 local function formatTooManyPacketDrops(ifid, alert, threshold_info)
   local alert_consts = require("alert_consts")
   local entity = alert_consts.formatAlertEntity(ifid, alert_consts.alertEntityRaw(alert["alert_entity"]), alert["alert_entity_val"])
-  local max_drop_perc = threshold_info.edge or 0
+  local max_drop_perc = threshold_info.threshold or 0
 
   return(i18n("alert_messages.too_many_drops", {iface = entity, max_drops = max_drop_perc}))
 end

@@ -977,7 +977,7 @@ function alerts_api.threshold_check_function(params)
   local value = params.user_script.get_threshold_value(params.granularity, params.entity_info)
   local threshold_config = params.alert_config
 
-  local threshold_edge = tonumber(threshold_config.edge)
+  local threshold_edge = tonumber(threshold_config.threshold)
   local threshold_builder = ternary(params.user_script.threshold_type_builder, params.user_script.threshold_type_builder, alerts_api.thresholdCrossType)
   local threshold_type = threshold_builder(params.granularity, params.user_script.key, value, threshold_config.operator, threshold_edge)
 

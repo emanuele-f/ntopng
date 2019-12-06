@@ -11,7 +11,7 @@ local script = {
   default_value = {
     -- "> 50"
     operator = "gt",
-    edge = 50,
+    threshold = 50,
   },
 
   hooks = {
