@@ -10,6 +10,9 @@ require "lua_trace"
 
 local dirs = ntop.getDirs()
 
+-- enable debug tracing
+local do_trace = false
+
 plugins_utils.COMMUNITY_SOURCE_DIR = os_utils.fixPath(dirs.scriptdir .. "/plugins")
 plugins_utils.PRO_SOURCE_DIR = os_utils.fixPath(dirs.installdir .. "/pro/scripts/pro_plugins")
 plugins_utils.ENTERPRISE_SOURCE_DIR = os_utils.fixPath(dirs.installdir .. "/pro/scripts/enterprise_plugins")
@@ -24,6 +27,7 @@ local RUNTIME_PATHS = {}
 function plugins_utils.listPlugins()
   local plugins = {}
   local source_dirs = {plugins_utils.COMMUNITY_SOURCE_DIR}
+  local plugins_with_deps = {}
 
   if ntop.isPro() then
     source_dirs[#source_dirs + 1] = plugins_utils.PRO_SOURCE_DIR
@@ -48,11 +52,36 @@ function plugins_utils.listPlugins()
         metadata.key = plugin_name
 
         -- TODO check plugin dependencies
-
-        plugins[plugin_name] = metadata
+        if not table.empty(metadata.dependencies) then
+          plugins_with_deps[plugin_name] = metadata
+        else
+          plugins[plugin_name] = metadata
+        end
       else
         traceError(TRACE_ERROR, TRACE_CONSOLE, string.format("Missing plugin.lua in '%s'", plugin_name))
       end
+    end
+  end
+
+  -- Check basic dependencies.
+  -- No recursion is supported (e.g. dependency on a plugin which has dependencies itself)
+  for plugin_name, metadata in pairs(plugins_with_deps) do
+    local satisfied = true
+
+    for _, dep_name in pairs(metadata.dependencies) do
+      if not plugins[dep_name] then
+        satisfied = false
+
+        if do_trace then
+          print(string.format("Skipping plugin '%s' with unmet depedendency ('%s')\n", plugin_name, dep_name))
+        end
+
+        break
+      end
+    end
+
+    if satisfied then
+      plugins[plugin_name] = metadata
     end
   end
 
@@ -73,20 +102,14 @@ local function init_runtime_paths()
     -- Locales
     locales = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/locales"),
 
-    -- User/Alerts scripts
+    -- User scripts
     interface_scripts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/interface/interface"),
-    interface_alerts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/interface/interface/alerts"),
     host_scripts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/interface/host"),
-    host_alerts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/interface/host/alerts"),
     network_scripts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/interface/network"),
-    network_alerts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/interface/network/alerts"),
     flow_scripts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/interface/flow"),
-    flow_alerts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/interface/flow/alerts"),
     syslog = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/syslog"),
     snmp_scripts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/system/snmp_device"),
-    snmp_alerts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/system/snmp_device/alerts"),
     system_scripts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/system/system"),
-    system_alerts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/system/system/alerts"),
   }
 end
 
@@ -191,18 +214,12 @@ local function load_plugin_user_scripts(plugin)
 
   return(
     recursive_copy(os_utils.fixPath(scripts_path .. "/interface"), RUNTIME_PATHS.interface_scripts) and
-    recursive_copy(os_utils.fixPath(scripts_path .. "/alerts/interface"), RUNTIME_PATHS.interface_alerts) and
     recursive_copy(os_utils.fixPath(scripts_path .. "/host"), RUNTIME_PATHS.host_scripts) and
-    recursive_copy(os_utils.fixPath(scripts_path .. "/alerts/host"), RUNTIME_PATHS.host_alerts) and
     recursive_copy(os_utils.fixPath(scripts_path .. "/network"), RUNTIME_PATHS.network_scripts) and
-    recursive_copy(os_utils.fixPath(scripts_path .. "/alerts/network"), RUNTIME_PATHS.network_alerts) and
     recursive_copy(os_utils.fixPath(scripts_path .. "/flow"), RUNTIME_PATHS.flow_scripts) and
-    recursive_copy(os_utils.fixPath(scripts_path .. "/alerts/flow"), RUNTIME_PATHS.flow_alerts) and
     recursive_copy(os_utils.fixPath(scripts_path .. "/syslog"), RUNTIME_PATHS.syslog) and
     recursive_copy(os_utils.fixPath(scripts_path .. "/snmp_device"), RUNTIME_PATHS.snmp_scripts) and
-    recursive_copy(os_utils.fixPath(scripts_path .. "/alerts/snmp_device"), RUNTIME_PATHS.snmp_alerts) and
-    recursive_copy(os_utils.fixPath(scripts_path .. "/system"), RUNTIME_PATHS.system_scripts) and
-    recursive_copy(os_utils.fixPath(scripts_path .. "/alerts/system"), RUNTIME_PATHS.system_alerts)
+    recursive_copy(os_utils.fixPath(scripts_path .. "/system"), RUNTIME_PATHS.system_scripts)
   )
 end
 
@@ -231,7 +248,9 @@ function plugins_utils.loadPlugins()
         load_plugin_i18n(locales, en_locale, plugin) and
         load_plugin_modules(plugin) and
         load_plugin_user_scripts(plugin) then
-      traceError(TRACE_INFO, TRACE_CONSOLE, string.format("Successfully loaded plugin %s", plugin.key))
+      if do_trace then
+        print(string.format("Successfully loaded plugin %s\n", plugin.key))
+      end
     else
       traceError(TRACE_ERROR, TRACE_CONSOLE, string.format("Errors occurred while processing plugin %s", plugin.key))
     end
