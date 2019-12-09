@@ -11,14 +11,13 @@ require "lua_utils"
 local page_utils = require("page_utils")
 local ts_utils = require("ts_utils")
 local alert_consts = require("alert_consts")
-local system_scripts = require("system_scripts_utils")
 local rtt_utils = require("rtt_utils")
 local plugins_utils = require("plugins_utils")
 local template = require("template_utils")
 require("graph_utils")
 require("alert_utils")
 
-local ts_creation = system_scripts.timeseriesCreationEnabled()
+local ts_creation = plugins.timeseriesCreationEnabled()
 
 if not isAllowedSystemInterface() then
    return
@@ -37,8 +36,6 @@ local url = plugins_utils.getUrl("rtt_stats.lua") .. "?ifid=" .. getInterfaceId(
 if not isEmptyString(host) then
   url = url .. "&rtt_host=" .. host
 end
-
-system_schemas = system_scripts.getAdditionalTimeseries("rtt")
 
 print [[
   <nav class="navbar navbar-default" role="navigation">
@@ -66,7 +63,7 @@ if((host ~= nil) and ts_utils.exists("monitored_host:rtt", {ifid=getSystemInterf
   end
 end
 
-if(isAdministrator() and system_scripts.hasAlerts({entity = alert_consts.alertEntity("pinged_host")})) then
+if(isAdministrator() and plugins_utils.hasAlerts(getSystemInterfaceId(), {entity = alert_consts.alertEntity("pinged_host")})) then
    if(page == "alerts") then
       print("\n<li class=\"active\"><a href=\"#\">")
    else
@@ -407,7 +404,9 @@ elseif((page == "historical") and (host ~= nil)) then
    url = url.."&page=historical&rtt_host=" .. host
 
    drawGraphs(getSystemInterfaceId(), schema, tags, _GET["zoom"], url, selected_epoch, {
-      timeseries = system_schemas,
+      timeseries = {
+        { schema="monitored_host:rtt",              label=i18n("graphs.num_ms_rtt") },
+      },
    })
 elseif((page == "alerts") and isAdministrator()) then
    local old_ifname = ifname

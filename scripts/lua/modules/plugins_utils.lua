@@ -364,12 +364,17 @@ function plugins_utils.loadSchemas(granularity)
     end
 
     for _, fname in pairs(files_to_load) do
-      local fpath = os_utils.fixPath(ts_dir .. "/" .. fname)
+      if string.ends(fname, ".lua") then
+        local fgran = string.sub(fname, 1, string.len(fname)-4)
+        local fpath = os_utils.fixPath(ts_dir .. "/" .. fname)
 
-      if(string.ends(fpath, ".lua") and ntop.exists(fpath)) then
-        -- load the script
-        assert(loadfile(fpath))()
+        -- Check if not already loaded
+        if((schemas_loaded[fgran] == nil) and ntop.exists(fpath)) then
+          -- load the script
+          assert(loadfile(fpath))()
+        end
       end
+      
     end
   end
 
@@ -395,6 +400,37 @@ end
 
 function plugins_utils.getUrl(script)
   return(ntop.getHttpPrefix() .. "/lua/plugins/" .. script)
+end
+
+-- ##############################################
+
+function plugins_utils.hasAlerts(ifid, options)
+  -- Requiring alert_utils here to optimize second.lua
+  require("alert_utils")
+
+  local opts = table.merge(options, {ifid = ifid})
+  local old_iface = iface
+  local rv
+  interface.select(ifid)
+
+  rv = (areAlertsEnabled() and
+    (hasAlerts("historical", getTabParameters(opts, "historical")) or
+     hasAlerts("engaged", getTabParameters(opts, "engaged"))))
+
+  interface.select(old_iface)
+  return(rv)
+end
+
+-- ##############################################
+
+function plugins_utils.timeseriesCreationEnabled()
+   local system_probes_timeseries_enabled = true
+
+   if ntop.getPref("ntopng.prefs.system_probes_timeseries") == "0" then
+      system_probes_timeseries_enabled = false
+   end
+
+   return system_probes_timeseries_enabled
 end
 
 -- ##############################################

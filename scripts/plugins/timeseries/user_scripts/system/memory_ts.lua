@@ -1,16 +1,24 @@
 --
--- (C) 2013-19 - ntop.org
+-- (C) 2019 - ntop.org
 --
 
-local probe = {
-   name = "Process Memory",
-   descripton = "Monitors the memory usage of the process",
+local ts_utils = require("ts_utils_core")
+
+local script = {
+  -- This module is enabled by default
+  default_enabled = true,
+
+  -- No default configuration is provided
+  default_value = {},
+
+  -- See below
+  hooks = {},
 }
 
 -- ##############################################
 
-function probe.runTask(when, ts_utils, ts_creation)
-   if ts_creation then
+function script.hooks.min(params)
+   if params.ts_enabled then
       local system_host_stats = ntop.systemHostStat()
 
       if((system_host_stats.mem_ntopng_resident ~= nil) and
@@ -26,4 +34,4 @@ end
 
 -- ##############################################
 
-return probe
+return script

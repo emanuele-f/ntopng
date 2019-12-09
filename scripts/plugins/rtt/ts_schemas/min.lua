@@ -9,6 +9,7 @@ schema = ts_utils.newSchema("monitored_host:rtt", {
   step = 60,
   metrics_type = ts_utils.metrics.gauge,
   aggregation_function = ts_utils.aggregation.max,
+  is_system_schema = true,
 })
 
 schema:addTag("ifid")

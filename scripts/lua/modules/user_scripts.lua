@@ -600,6 +600,23 @@ end
 
 -- ##############################################
 
+-- @brief Convenient method to only load a specific script
+function user_scripts.loadModule(ifid, script_type, subdir, mod_fname)
+   local check_dirs = getScriptsDirectories(script_type, subdir)
+
+   for _, checks_dir in pairs(check_dirs) do
+      local full_path = os_utils.fixPath(checks_dir .. "/" .. mod_fname .. ".lua")
+
+      if ntop.exists(full_path) then
+	 return(assert(loadfile(full_path))())
+      end
+   end
+
+   return(nil)
+end
+
+-- ##############################################
+
 -- Get the configuration to use for a specific entity
 -- @param user_script the user script, loaded with user_scripts.load
 -- @param (optional) hook the hook function

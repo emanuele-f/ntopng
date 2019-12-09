@@ -11,11 +11,11 @@ require "lua_utils"
 local page_utils = require("page_utils")
 local ts_utils = require("ts_utils")
 local alert_consts = require("alert_consts")
-local system_scripts = require("system_scripts_utils")
+local plugins_utils = require("plugins_utils")
 require("graph_utils")
 require("alert_utils")
 
-local ts_creation = system_scripts.timeseriesCreationEnabled()
+local ts_creation = plugins_utils.timeseriesCreationEnabled()
 
 if not isAllowedSystemInterface() then
    return
@@ -27,10 +27,8 @@ page_utils.print_header()
 
 dofile(dirs.installdir .. "/scripts/lua/inc/menu.lua")
 
-local probe = system_scripts.getSystemProbe("redis")
 local page = _GET["page"] or "overview"
-local url = system_scripts.getPageScriptPath(probe) .. "?ifid=" .. getInterfaceId(ifname)
-system_schemas = system_scripts.getAdditionalTimeseries("redis")
+local url = plugins_utils.getUrl("redis_stats.lua") .. "?ifid=" .. getInterfaceId(ifname)
 
 print [[
   <nav class="navbar navbar-default" role="navigation">
@@ -58,19 +56,6 @@ if ts_creation then
    else
       print("<li><a href=\""..url.."&page=historical\"><i class='fa fa-area-chart fa-lg'></i></a></li>")
    end
-end
-
-if isAdministrator()
--- and system_scripts.hasAlerts({entity = alert_consts.alertEntity("redis")}))
-then
-   -- if(page == "alerts") then
-   --    print("\n<li class=\"active\"><a href=\"#\">")
-   -- else
-   --    print("\n<li><a href=\""..url.."&page=alerts\">")
-   -- end
-
-   -- print("<i class=\"fa fa-warning fa-lg\"></i></a>")
-   -- print("</li>")
 end
 
 print [[
@@ -114,7 +99,7 @@ if(page == "overview") then
  };
 
  function refreshRedisStats() {
-  $.get("]] print(ntop.getHttpPrefix()) print[[/lua/get_redis_info.lua", function(info) {
+  $.get("]] print(plugins_utils.getUrl("get_redis_info.lua")) print[[", function(info) {
      $(".redis-info-load").hide();
 
      if(typeof info.health !== "undefined" && health_descr[info.health]) {
@@ -152,7 +137,7 @@ $("#table-redis-stats").datatable({
    title: "",
    perPage: 100,
    hidePerPage: true,
-   url: "]] print(ntop.getHttpPrefix()) print[[/lua/get_redis_stats.lua",
+   url: "]] print(plugins_utils.getUrl("get_redis_stats.lua")) print(ntop.getHttpPrefix()) print[[",
    columns: [
      {
        field: "column_key",
@@ -197,9 +182,29 @@ elseif(page == "historical" and ts_creation) then
    local tags = {ifid = getSystemInterfaceId(), command = _GET["redis_command"]}
    url = url.."&page=historical"
 
+   local timeseries = {
+      {schema = "redis:memory", label = i18n("about.ram_memory")},
+      {schema = "redis:keys", label = i18n("system_stats.redis.redis_keys")},
+      {separator=1, label=i18n("system_stats.redis.commands")},
+   }
+
+   -- Populate individual commands timeseries
+   local series = ts_utils.listSeries("redis:hits", {ifid = getSystemInterfaceId()}, 0)
+
+   if(series) then
+      for _, serie in pairsByField(series, "command", asc) do
+          timeseries[#timeseries + 1] = {
+             schema = "redis:hits",
+             label = i18n("system_stats.redis.command_hits", {cmd = string.upper(string.sub(serie.command, 5))}),
+             extra_params = {redis_command = serie.command},
+             metrics_labels = {i18n("graphs.num_calls")},
+          }
+      end
+   end
+
    drawGraphs(getSystemInterfaceId(), schema, tags, _GET["zoom"], url, selected_epoch, {
        top_redis_hits = "top:redis:hits",
-		 timeseries = system_schemas,
+		 timeseries = timeseries,
    })
 elseif((page == "alerts") and isAdministrator()) then
    local old_ifname = ifname

@@ -10,12 +10,14 @@ active_page = "system_stats"
 require "lua_utils"
 local page_utils = require("page_utils")
 local ts_utils = require("ts_utils")
-local system_scripts = require("system_scripts_utils")
 local alert_consts = require("alert_consts")
+local user_scripts = require("user_scripts")
+local plugins_utils = require("plugins_utils")
 require("graph_utils")
 require("alert_utils")
 
-local ts_creation = system_scripts.timeseriesCreationEnabled()
+local ts_creation = plugins_utils.timeseriesCreationEnabled()
+local probe = user_scripts.loadModule(getSystemInterfaceId(), user_scripts.script_types.system, "system", "influxdb_monitor")
 
 if not isAllowedSystemInterface() or (ts_utils.getDriverName() ~= "influxdb") then
    return
@@ -27,10 +29,8 @@ page_utils.print_header()
 
 dofile(dirs.installdir .. "/scripts/lua/inc/menu.lua")
 
-local probe = system_scripts.getSystemProbe("influxdb")
 local page = _GET["page"] or "overview"
-local url = system_scripts.getPageScriptPath(probe) .. "?ifid=" .. getInterfaceId(ifname)
-system_schemas = system_scripts.getAdditionalTimeseries("influxdb")
+local url = plugins_utils.getUrl("influxdb_stats.lua") .. "?ifid=" .. getInterfaceId(ifname)
 
 print [[
   <nav class="navbar navbar-default" role="navigation">
@@ -54,7 +54,7 @@ if ts_creation then
    end
 end
 
-if(isAdministrator() and system_scripts.hasAlerts({entity = alert_consts.alertEntity("influx_db")})) then
+if(isAdministrator() and plugins_utils.hasAlerts(getSystemInterfaceId(), {entity = alert_consts.alertEntity("influx_db")})) then
    if(page == "alerts") then
       print("\n<li class=\"active\"><a href=\"#\">")
    else
@@ -198,8 +198,24 @@ elseif(page == "historical" and ts_creation) then
    url = url.."&page=historical"
 
    drawGraphs(getSystemInterfaceId(), schema, tags, _GET["zoom"], url, selected_epoch, {
-      timeseries = system_schemas,
-   })
+      timeseries = {
+      {schema="influxdb:storage_size",                      label=i18n("traffic_recording.storage_utilization")},
+      {schema="influxdb:memory_size",                       label=i18n("about.ram_memory")},
+      {schema="influxdb:write_successes",                   label=i18n("system_stats.write_througput")},
+      {schema="influxdb:exports",                           label=i18n("system_stats.exports_label"),
+       value_formatter = {"export_rate", "exports_format"},
+       metrics_labels = {i18n("system_stats.exports_label")}},
+      {schema="influxdb:exported_points",                   label=i18n("system_stats.exported_points")},
+      {schema="influxdb:dropped_points",                    label=i18n("system_stats.dropped_points")},
+      {schema="custom:infludb_exported_vs_dropped_points",  label=i18n("system_stats.exported_vs_dropped_points"),
+       custom_schema = {
+	  bases = {"influxdb:exported_points", "influxdb:dropped_points"},
+	  types = {"area", "line"}, axis = {1,2},
+       },
+       metrics_labels = {i18n("system_stats.exported_points"), i18n("system_stats.dropped_points")},
+      },
+      {schema="influxdb:rtt",                               label=i18n("graphs.num_ms_rtt")},
+   }})
 elseif((page == "alerts") and isAdministrator()) then
    local old_ifname = ifname
    local influxdb = ts_utils.getQueryDriver()
