@@ -12,7 +12,7 @@ local function formatThresholdCross(ifid, alert, threshold_info)
     metric = threshold_info.metric,
     entity = entity,
     value = string.format("%u", math.ceil(threshold_info.value)),
-    op = "&"..threshold_info.operator..";",
+    op = "&".. (threshold_info.operator or "gt") ..";",
     threshold = threshold_info.threshold,
   })
 end

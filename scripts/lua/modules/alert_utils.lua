@@ -118,6 +118,10 @@ function alertEngineRaw(granularity_id)
 end
 
 function alertEngine(v)
+   if(alert_consts.alerts_granularities[v] == nil) then
+      tprint(debug.traceback())
+   end
+
    return(alert_consts.alerts_granularities[v].granularity_id)
 end
 
@@ -138,6 +142,10 @@ function alertEngineDescription(v)
 end
 
 function granularity2sec(v)
+   if(alert_consts.alerts_granularities[v] == nil) then
+      tprint(debug.traceback())
+   end
+
   return(alert_consts.alerts_granularities[v].granularity_seconds)
 end
 

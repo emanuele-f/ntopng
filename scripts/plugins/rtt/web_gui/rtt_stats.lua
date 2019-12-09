@@ -17,7 +17,7 @@ local template = require("template_utils")
 require("graph_utils")
 require("alert_utils")
 
-local ts_creation = plugins.timeseriesCreationEnabled()
+local ts_creation = plugins_utils.timeseriesCreationEnabled()
 
 if not isAllowedSystemInterface() then
    return

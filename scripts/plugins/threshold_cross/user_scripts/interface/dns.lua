@@ -3,13 +3,14 @@
 --
 
 local alerts_api = require("alerts_api")
+local alert_consts = require("alert_consts")
 local user_scripts = require("user_scripts")
 
 local script = {
-  hooks = {
-    all = alerts_api.threshold_check_function
-  },
   default_enabled = false,
+
+  -- See below
+  hooks = {},
 
   gui = {
     i18n_title = "alerts_thresholds_config.dns_traffic",
@@ -22,8 +23,11 @@ local script = {
 
 -- #################################################################
 
-function script.get_threshold_value(granularity, info)
-  return alerts_api.interface_delta_val(script.key, granularity, alerts_api.application_bytes(info, "DNS"))
+function script.hooks.all(params)
+  local value = alerts_api.interface_delta_val(script.key, params.granularity, alerts_api.application_bytes(params.entity_info, "DNS"))
+
+  -- Check if the configured threshold is crossed by the value and possibly trigger an alert
+  alerts_api.checkThresholdAlert(params, alert_consts.alert_types.alert_threshold_cross, value)
 end
 
 -- #################################################################

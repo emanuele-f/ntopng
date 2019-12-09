@@ -3,13 +3,14 @@
 --
 
 local alerts_api = require("alerts_api")
+local alert_consts = require("alert_consts")
 local user_scripts = require("user_scripts")
 
 local script = {
   default_enabled = false,
-  hooks = {
-    all = alerts_api.threshold_check_function
-  },
+
+  -- See below
+  hooks = {},
 
   gui = {
     i18n_title = "alerts_thresholds_config.ingress_traffic",
@@ -22,8 +23,11 @@ local script = {
 
 -- #################################################################
 
-function script.get_threshold_value(granularity, info)
-  return alerts_api.network_delta_val(script.key, granularity, info["ingress"])
+function script.hooks.all(params)
+  local value = alerts_api.network_delta_val(script.key, params.granularity, params.entity_info["ingress"])
+
+  -- Check if the configured threshold is crossed by the value and possibly trigger an alert
+  alerts_api.checkThresholdAlert(params, alert_consts.alert_types.alert_threshold_cross, value)
 end
 
 -- #################################################################

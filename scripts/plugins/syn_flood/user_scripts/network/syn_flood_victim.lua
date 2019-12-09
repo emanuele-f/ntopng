@@ -3,15 +3,14 @@
 --
 
 local alerts_api = require("alerts_api")
+local alert_consts = require("alert_consts")
 local user_scripts = require("user_scripts")
 
 local script = {
-  threshold_type_builder = alerts_api.synFloodType,
   default_enabled = false,
 
-  hooks = {
-     min = alerts_api.threshold_check_function,
-  },
+  -- See below
+  hooks = {},
 
   gui = {
     i18n_title = "entity_thresholds.syn_victim_title",
@@ -27,8 +26,11 @@ local script = {
 
 -- #################################################################
 
-function script.get_threshold_value(granularity, info)
-  return(info["hits.syn_flood_victim"] or 0)
+function script.hooks.min(params)
+  local value = params.entity_info["hits.syn_flood_victim"] or 0
+
+  -- Check if the configured threshold is crossed by the value and possibly trigger an alert
+  alerts_api.checkThresholdAlert(params, alert_consts.alert_types.alert_tcp_syn_flood, value)
 end
 
 -- #################################################################
