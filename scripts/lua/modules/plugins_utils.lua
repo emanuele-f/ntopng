@@ -19,6 +19,7 @@ plugins_utils.ENTERPRISE_SOURCE_DIR = os_utils.fixPath(dirs.installdir .. "/pro/
 
 -- TODO: use more appropriate runtime path
 plugins_utils.PLUGINS_RUNTIME_PATH = os_utils.fixPath(dirs.workingdir .. "/plugins")
+plugins_utils.PLUGINS_GUI_RUNTIME_PATH = os_utils.fixPath(dirs.scriptdir .. "/lua/plugins")
 
 local RUNTIME_PATHS = {}
 
@@ -73,7 +74,7 @@ function plugins_utils.listPlugins()
         satisfied = false
 
         if do_trace then
-          print(string.format("Skipping plugin '%s' with unmet depedendency ('%s')\n", plugin_name, dep_name))
+          io.write(string.format("Skipping plugin '%s' with unmet depedendency ('%s')\n", plugin_name, dep_name))
         end
 
         break
@@ -102,6 +103,9 @@ local function init_runtime_paths()
     -- Timeseries
     ts_schemas = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/ts_schemas"),
 
+    -- Web Gui
+    web_gui = os_utils.fixPath(plugins_utils.PLUGINS_GUI_RUNTIME_PATH),
+
     -- User scripts
     interface_scripts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/interface/interface"),
     host_scripts = os_utils.fixPath(plugins_utils.PLUGINS_RUNTIME_PATH .. "/callbacks/interface/host"),
@@ -119,6 +123,10 @@ local function copy_file(fname, src_path, dst_path)
   local src = os_utils.fixPath(src_path .. "/" .. fname)
   local dst = os_utils.fixPath(dst_path .. "/" .. fname)
   local infile, err = io.open(src, "r")
+
+  if(do_trace) then
+    io.write(string.format("\tLoad [%s]\n", fname))
+  end
 
   if(ntop.exists(dst)) then
     -- NOTE: overwriting is not allowed as it means that a file was already provided by
@@ -207,8 +215,12 @@ local function load_plugin_i18n(locales, default_locale, plugin)
       local locale = persistence.load(full_path)
 
       if locale then
-        locales[fname] = locales[locale_name] or {}
+        locales[fname] = locales[fname] or {}
         locales[fname][plugin.key] = locale
+
+        if do_trace then
+          io.write("\ti18n: " .. fname .. "\n")
+        end
       else
         return(false)
       end
@@ -236,16 +248,58 @@ end
 
 -- ##############################################
 
+local function load_plugin_web_gui(menu_entries, plugin)
+  local gui_dir = os_utils.fixPath(plugin.path .. "/web_gui")
+
+  for fname in pairs(ntop.readdir(gui_dir)) do
+    if(fname == "menu.lua") then
+      local menu_entry = assert(loadfile(os_utils.fixPath(gui_dir .. "/" .. fname)))()
+
+      if(menu_entry) then
+        if(menu_entry.label == nil) then
+          traceError(TRACE_ERROR, TRACE_CONSOLE, string.format("Missing menu entry 'label' in %s (menu.lua)", plugin.key))
+          return(false)
+        elseif(menu_entry.script == nil) then
+          traceError(TRACE_ERROR, TRACE_CONSOLE, string.format("Missing menu entry 'script' in %s (menu.lua)", plugin.key))
+          return(false)
+        else
+          -- Check that the menu entry exists
+          local script_path = os_utils.fixPath(gui_dir .. "/" .. menu_entry.script)
+
+          if(not ntop.exists(script_path)) then
+            traceError(TRACE_ERROR, TRACE_CONSOLE, string.format("Missing menu entry script path '%s' does not exists in %s", script_path, plugin.key))
+            return(false)
+          end
+
+          menu_entry.url = plugins_utils.getUrl(menu_entry.script)
+        end
+      end
+
+      menu_entries[plugin.key] = menu_entry
+    else
+      if not copy_file(fname, gui_dir, RUNTIME_PATHS.web_gui) then
+        return(false)
+      end
+    end
+  end
+
+  return(true)
+end
+
+-- ##############################################
+
 -- @brief Loads the ntopng plugins into a single directory tree.
 -- @notes This should be called at startup
 function plugins_utils.loadPlugins()
   local locales_utils = require("locales_utils")
   local plugins = plugins_utils.listPlugins()
   local locales = {}
+  local menu_entries = {}
   local en_locale = locales_utils.readDefaultLocale()
 
   -- Clean previous structure
   ntop.rmdir(plugins_utils.PLUGINS_RUNTIME_PATH)
+  ntop.rmdir(plugins_utils.PLUGINS_GUI_RUNTIME_PATH)
 
   -- Initialize directories
   init_runtime_paths()
@@ -255,13 +309,16 @@ function plugins_utils.loadPlugins()
   end
 
   for _, plugin in pairs(plugins) do
+    if do_trace then
+      io.write(string.format("Loading plugin %s\n", plugin.key))
+    end
+
     if load_plugin_definitions(plugin) and
         load_plugin_i18n(locales, en_locale, plugin) and
         load_plugin_ts_schemas(plugin) and
+        load_plugin_web_gui(menu_entries, plugin) and
         load_plugin_user_scripts(plugin) then
-      if do_trace then
-        print(string.format("Successfully loaded plugin %s\n", plugin.key))
-      end
+      -- Ok
     else
       traceError(TRACE_ERROR, TRACE_CONSOLE, string.format("Errors occurred while processing plugin %s", plugin.key))
     end
@@ -272,6 +329,13 @@ function plugins_utils.loadPlugins()
     local locale_path = os_utils.fixPath(RUNTIME_PATHS.locales .. "/" .. fname)
 
     persistence.store(locale_path, plugins_locales)
+  end
+
+  -- Save the menu entries
+  if not table.empty(menu_entries) then
+    local menu_path = os_utils.fixPath(RUNTIME_PATHS.web_gui .. "/menu.lua")
+
+    persistence.store(menu_path, menu_entries)
   end
 end
 
@@ -310,6 +374,27 @@ function plugins_utils.loadSchemas(granularity)
   end
 
   schemas_loaded[granularity or "all"] = true
+end
+
+-- ##############################################
+
+function plugins_utils.getMenuEntries()
+  init_runtime_paths()
+
+  local menu_path = os_utils.fixPath(RUNTIME_PATHS.web_gui .. "/menu.lua")
+
+  if ntop.exists(menu_path) then
+    local menu = assert(loadfile(menu_path))()
+    return(menu)
+  end
+
+  return(nil)
+end
+
+-- ##############################################
+
+function plugins_utils.getUrl(script)
+  return(ntop.getHttpPrefix() .. "/lua/plugins/" .. script)
 end
 
 -- ##############################################

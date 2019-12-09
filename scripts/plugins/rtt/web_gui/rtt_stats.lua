@@ -13,6 +13,7 @@ local ts_utils = require("ts_utils")
 local alert_consts = require("alert_consts")
 local system_scripts = require("system_scripts_utils")
 local rtt_utils = require("rtt_utils")
+local plugins_utils = require("plugins_utils")
 local template = require("template_utils")
 require("graph_utils")
 require("alert_utils")
@@ -31,8 +32,7 @@ dofile(dirs.installdir .. "/scripts/lua/inc/menu.lua")
 
 local page = _GET["page"] or "overview"
 local host = _GET["rtt_host"]
-local probe = system_scripts.getSystemProbe("rtt")
-local url = system_scripts.getPageScriptPath(probe) .. "?ifid=" .. getInterfaceId(ifname)
+local url = plugins_utils.getUrl("rtt_stats.lua") .. "?ifid=" .. getInterfaceId(ifname)
 
 if not isEmptyString(host) then
   url = url .. "&rtt_host=" .. host
@@ -148,7 +148,7 @@ if(page == "overview") then
 
 	 $("#table-hosts").datatable({
 	 	url: "]]
-  print (getPageUrl(ntop.getHttpPrefix().."/lua/get_rtt_hosts.lua", {rtt_host = host}))
+  print (getPageUrl(plugins_utils.getUrl("get_rtt_hosts.lua"), {rtt_host = host}))
       print[[",
       title: "",
       forceTable: true,

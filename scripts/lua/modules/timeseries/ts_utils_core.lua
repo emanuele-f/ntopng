@@ -112,6 +112,7 @@ end
 
 function ts_utils.loadSchemas()
   local system_scripts = require("system_scripts_utils")
+  local plugins_utils = require("plugins_utils")
 
   -- This should include all the available schemas
   require("ts_second")
@@ -122,6 +123,7 @@ function ts_utils.loadSchemas()
 
   -- Possibly load more timeseries schemas
   local menu_entries = system_scripts.loadSchemas()
+  plugins_utils.loadSchemas()
 
   if(ntop.exists(dirs.installdir .. "/scripts/lua/modules/timeseries/custom/ts_minute_custom.lua")) then
      require("ts_minute_custom")

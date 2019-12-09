@@ -270,7 +270,9 @@ end
 -- ##############################################
 
 function system_scripts.getPageScriptPath(probe)
-  return(ntop.getHttpPrefix() .. "/lua/system/" .. probe.page_script)
+  if probe.page_script then
+    return(ntop.getHttpPrefix() .. "/lua/system/" .. probe.page_script)
+  end
 end
 
 -- ##############################################

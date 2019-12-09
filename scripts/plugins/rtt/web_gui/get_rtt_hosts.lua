@@ -10,6 +10,7 @@ local format_utils = require("format_utils")
 local json = require("dkjson")
 local ts_utils = require("ts_utils")
 local rtt_utils = require("rtt_utils")
+local plugins_utils = require("plugins_utils")
 
 sendHTTPContentTypeHeader('application/json')
 
@@ -94,7 +95,7 @@ for key in pairsByValues(sort_to_key, sOrder) do
     local chart = ""
 
     if ts_utils.exists("monitored_host:rtt", {ifid=getSystemInterfaceId(), host=key}) then
-      chart = '<a href="'.. ntop.getHttpPrefix() ..'/lua/system/rtt_stats.lua?rtt_host='.. key ..'&page=historical"><i class="fa fa-area-chart fa-lg"></i></a>'
+      chart = '<a href="'.. plugins_utils.getUrl('rtt_stats.lua') .. '?rtt_host='.. key ..'&page=historical"><i class="fa fa-area-chart fa-lg"></i></a>'
     end
 
     local column_last_ip = ""

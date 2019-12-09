@@ -11,8 +11,6 @@ local alert_consts = require("alert_consts")
 local probe = {
   name = "RTT Monitor",
   description = "Monitors the round trip time of an host",
-  page_script = "rtt_stats.lua",
-  page_order = 1500,
 }
 
 -- ##############################################
@@ -26,14 +24,6 @@ function probe.entityConfig(entity_type, entity_value)
    if entity_type == "host" then
       return {url = ntop.getHttpPrefix().."/lua/system/rtt_stats.lua?rtt_host="..rtt_host_key}
    end
-end
-
--- ##############################################
-
-function probe.getTimeseriesMenu(ts_utils)
-  return {
-    {schema="monitored_host:rtt",              label=i18n("graphs.num_ms_rtt")},
-  }
 end
 
 -- ##############################################
