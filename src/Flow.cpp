@@ -176,7 +176,7 @@ Flow::Flow(NetworkInterface *_iface,
   switch(protocol) {
   case IPPROTO_TCP:
   case IPPROTO_UDP:
-    if(iface->is_ndpi_enabled() && (!iface->isSampledTraffic()))
+    if(iface->is_ndpi_enabled())
       allocDPIMemory();
 
     if(protocol == IPPROTO_UDP)
@@ -186,17 +186,17 @@ Flow::Flow(NetworkInterface *_iface,
   case IPPROTO_ICMP:
     ndpiDetectedProtocol.app_protocol = NDPI_PROTOCOL_IP_ICMP,
       ndpiDetectedProtocol.master_protocol = NDPI_PROTOCOL_UNKNOWN;
-    setExplicitProtocol(ndpiDetectedProtocol);
+    setDetectedProtocol(ndpiDetectedProtocol);
     break;
 
   case IPPROTO_ICMPV6:
     ndpiDetectedProtocol.app_protocol = NDPI_PROTOCOL_IP_ICMPV6,
       ndpiDetectedProtocol.master_protocol = NDPI_PROTOCOL_UNKNOWN;
-    setExplicitProtocol(ndpiDetectedProtocol);
+    setDetectedProtocol(ndpiDetectedProtocol);
     break;
 
   default:
-    endProtocolDissection();
+    setDetectedProtocol(ndpi_guess_undetected_protocol(iface->get_ndpi_struct(), NULL, protocol, 0, 0, 0, 0));
     break;
   }
 }
@@ -546,10 +546,9 @@ void Flow::processPacket(const u_char *ip_packet, u_int16_t ip_len, u_int64_t pa
   bool detected;
   ndpi_protocol proto_id;
 
-  if(hasDissectedTooManyPackets()) {
-    endProtocolDissection();
-    return;
-  }
+  /* Note: do not call endProtocolDissection before ndpi_detection_process_packet. In case of
+   * early giveup (e.g. sampled traffic), nDPI should process at least one packet in order to
+   * be able to guess the protocol. */
 
   proto_id = ndpi_detection_process_packet(iface->get_ndpi_struct(), ndpiFlow,
     ip_packet, ip_len, packet_time,
@@ -601,7 +600,7 @@ void Flow::endProtocolDissection() {
 /* *************************************** */
 
 /* Manually set a protocol on the flow and terminate the dissection. */
-void Flow::setExplicitProtocol(ndpi_protocol proto_id) {
+void Flow::setDetectedProtocol(ndpi_protocol proto_id) {
   updateProtocol(proto_id);
   setProtocolDetectionCompleted();
 
@@ -616,7 +615,7 @@ void Flow::setExtraDissectionCompleted() {
     return;
 
   if(!detection_completed) {
-    ntop->getTrace()->traceEvent(TRACE_ERROR, "Bad internal status: setExtraDissectionCompleted called before setExplicitProtocol");
+    ntop->getTrace()->traceEvent(TRACE_ERROR, "Bad internal status: setExtraDissectionCompleted called before setDetectedProtocol");
     return;
   }
 
@@ -4428,6 +4427,10 @@ void Flow::performLuaCalls(const struct timeval *tv, periodic_ht_state_update_us
 
 bool Flow::hasDissectedTooManyPackets() {
   u_int32_t num_packets;
+
+  if(iface->isSampledTraffic() || (!iface->is_ndpi_enabled()))
+    /* Cannot reliably process sampled traffic, giveup the dissection */
+    return(true);
 
 #ifdef HAVE_NEDGE
   /* NOTE: in nEdge packet stats are update periodically, so

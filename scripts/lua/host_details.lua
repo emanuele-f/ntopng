@@ -105,8 +105,8 @@ if((host == nil) and ((_POST["mode"] == "restore") or (page == "historical"))) t
 end
 ]]
 
-local top_sites = host["sites"] and json.decode(host["sites"]) or {}
-local top_sites_old = host["sites.old"] and json.decode(host["sites.old"]) or {}
+local top_sites = host and host["sites"] and json.decode(host["sites"]) or {}
+local top_sites_old = host and host["sites.old"] and json.decode(host["sites.old"]) or {}
 
 local host_pool_id = nil
 

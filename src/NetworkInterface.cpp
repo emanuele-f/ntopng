@@ -1532,7 +1532,7 @@ bool NetworkInterface::processPacket(u_int32_t bridge_iface_idx,
       flow->dissectMDNS(payload, trusted_payload_len);
 
       if(discovery && iph)
-	discovery->queueMDNSRespomse(iph->saddr, payload, trusted_payload_len);
+	discovery->queueMDNSResponse(iph->saddr, payload, trusted_payload_len);
       break;
     }
 

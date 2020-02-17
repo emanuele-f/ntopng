@@ -349,7 +349,7 @@ class Flow : public GenericHashEntry {
 		       u_int16_t payload_len, bool src2dst_direction);
 
   void updateSeqNum(time_t when, u_int32_t sN, u_int32_t aN);
-  void setExplicitProtocol(ndpi_protocol proto_id);
+  void setDetectedProtocol(ndpi_protocol proto_id);
   void processPacket(const u_char *ip_packet, u_int16_t ip_len, u_int64_t packet_time);
   void endProtocolDissection();
   inline void setCustomApp(custom_app_t ca) {
