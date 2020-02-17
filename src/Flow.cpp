@@ -554,13 +554,17 @@ void Flow::processPacket(const u_char *ip_packet, u_int16_t ip_len, u_int64_t pa
     ip_packet, ip_len, packet_time,
     (struct ndpi_id_struct*) cli_id, (struct ndpi_id_struct*) srv_id);
 
-  // TODO use ndpi_is_protocol_detected(iface->get_ndpi_struct(), proto_id)
-  detected = (proto_id.app_protocol != NDPI_PROTOCOL_UNKNOWN);
+  detected = ndpi_is_protocol_detected(iface->get_ndpi_struct(), proto_id);
 
   if(!detected && hasDissectedTooManyPackets()) {
     endProtocolDissection();
     return;
   }
+
+#if 0
+  if(detected && (proto_id.app_protocol == NDPI_PROTOCOL_UNKNOWN))
+    printf("Detected: %d/%d\n", proto_id.master_protocol, proto_id.app_protocol);
+#endif
 
 #ifdef NTOPNG_PRO
   // Update the profile even if the detection is not yet completed.
